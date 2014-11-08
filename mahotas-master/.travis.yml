@@ -1,0 +1,23 @@
+language: python
+python:
+  - "2.7_with_system_site_packages"
+  - "3.3"
+  - "3.4"
+before_install:
+    - sudo apt-get update -qq
+    - sudo apt-get install -qq python-numpy libatlas-dev liblapack-dev gfortran
+    - sudo apt-get install -qq libfreeimage3
+    - sudo apt-get install -qq libpng12-dev libtiff4-dev libwebp-dev
+
+    - sudo apt-get install -qq python-scipy python-imaging python-matplotlib
+
+    - pip install --use-mirrors --quiet numpy
+    - pip install --use-mirrors scipy
+    - pip install --use-mirrors --quiet coveralls
+    - pip install --use-mirrors imread
+install:
+    - make debug
+script:
+    coverage run --source=mahotas setup.py test
+after_success:
+    coveralls

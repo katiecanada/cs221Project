@@ -1,0 +1,18 @@
+[run]
+source = mahotas
+
+[report]
+omit =
+    mahotas/demos/*
+    mahotas/bwperim.py
+    mahotas/freeimage.py
+    mahotas/lbp.py
+    mahotas/moments.py
+    mahotas/surf.py
+    mahotas/texture.py
+    mahotas/tas.py
+    mahotas/tests/__init__.py
+    mahotas/zernike.py
+exclude_lines =
+    pragma: no cover
+
