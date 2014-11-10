@@ -476,10 +476,11 @@ def runSurf(training_data, testing_data1, testing_data2):
     print "starting surf"
     pixelList = [pixels for pixels, emotion in training_data]
 
-    twoDArray = []
+    
     row = []
     surfFeaturesList = []
     for x in range(len(pixelList)):
+    twoDArray = []
         for i in range(0, len(pixelList[x])):
             if i % 48 == 0 and i!= 0:
                 twoDArray.append(row)
