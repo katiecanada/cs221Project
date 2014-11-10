@@ -117,7 +117,6 @@ def pixelIndexFeatureExtractor(x):
 
     return featureVector
 
->>>>>>> 710ba99746f1b801ee2ca9744340d046b8c4a503
 
 def HingeLossGradient(w, y, phi):
     '''
@@ -174,22 +173,12 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
 
     return weights
 
-<<<<<<< HEAD
-
-def dotProduct(d1, d2):
-    # """
-    # @param dict d1: a feature vector represented by a mapping from a feature (string) to a weight (float).
-    # @param dict d2: same as d1
-    # @return float: the dot product between d1 and d2
-    # """
-=======
 def dotProduct(d1, d2):
     """
     @param dict d1: a feature vector represented by a mapping from a feature (string) to a weight (float).
     @param dict d2: same as d1
     @return float: the dot product between d1 and d2
     """
->>>>>>> 710ba99746f1b801ee2ca9744340d046b8c4a503
     if len(d1) < len(d2):
         return dotProduct(d2, d1)
     else:
@@ -483,6 +472,30 @@ def clusterData(data, centroids):
     return clusters
 
 
+def runSurf(training_data, testing_data1, testing_data2):
+    print "starting surf"
+    pixelList = [pixels for pixels, emotion in training_data]
+
+    twoDArray = []
+    row = []
+    surfFeaturesList = []
+    for x in range(len(pixelList)):
+        for i in range(0, len(pixelList[x])):
+            if i % 48 == 0 and i!= 0:
+                twoDArray.append(row)
+                row = []
+            row.append(pixelList[x][i])
+        twoDArray.append(row)
+        print len(twoDArray)
+
+        surf = cv2.SURF(400)   
+        spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
+        surfFeaturesList.append(spoints)
+    k = 7
+    maxIter = 10
+    clusters = kmeans(surfFeaturesList, k, maxIter)
+    evaluateClusters(clusters, training_data, k)
+
 
 def runBaselinePredictor(training_data, testing_data1, testing_data2):
     '''
@@ -555,7 +568,7 @@ def main():
     #testInputData(training_data, testing_data1, testing_data2)
 
     runBaselinePredictor(training_data, testing_data1, testing_data2)
-
+    runSurf(training_data, testing_data1, testing_data2)
 
 if __name__ == '__main__':
   main()
