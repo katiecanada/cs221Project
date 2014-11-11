@@ -6,17 +6,6 @@ import sys
 import random
 import collections
 
-#''' git commit -a -m "comment" '''
-''' 
-TO COMMIT ON GITHUB:
-
-git add file_name --> to add file to a commit
-
-git commit -a -m "comment"
--a --> to commit all files
-git push origin master
-'''
-
 
 '''Set this to true to use a truncated version of the data of size smallDataSetSize'''
 smallDataSet = True
@@ -398,9 +387,9 @@ def detmineGroupMapping(clusterAssignments, data, k):
         for emotion, count in counter.items():  clusterPercentList[clusterIndex][emotion] = float(count)/float(emotionCounter[emotion])
 
 
-    print "cluster list: ", clusterList
-    print "emotionCounter: ", emotionCounter
-    print "clusterPercentList: ", clusterPercentList
+    #print "cluster list: ", clusterList
+    #print "emotionCounter: ", emotionCounter
+    #print "clusterPercentList: ", clusterPercentList
 
 
 
@@ -411,7 +400,7 @@ def detmineGroupMapping(clusterAssignments, data, k):
         else: kmeansClusterIndex_to_emotion[i] = (clusterList[i].most_common(1))[0][0]
         #kmeansClusterIndex_to_emotion[clusterIndex] --> emotion
 
-    print "kmeansClusterIndex --> emotion: ", kmeansClusterIndex_to_emotion
+    #print "kmeansClusterIndex --> emotion: ", kmeansClusterIndex_to_emotion
     return kmeansClusterIndex_to_emotion
 
 
@@ -442,7 +431,7 @@ def detmineGroupMapping(clusterAssignments, data, k):
                 highestPercent = percentCounter[emotion]
         kmeansClusterIndex_to_emotion[bestCluster] = emotion
 
-    print "kmeansClusterIndex--> emotion: ", kmeansClusterIndex_to_emotion
+    #print "kmeansClusterIndex--> emotion: ", kmeansClusterIndex_to_emotion
     return kmeansClusterIndex_to_emotion'''
     
 
