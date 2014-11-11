@@ -1,10 +1,10 @@
 import numpy as np
-import mahotas as mh
 import cv2 as cv2
 import csv
 import sys
 import random
 import collections
+import matplotlib.pyplot as plt
 
 
 '''Set this to true to use a truncated version of the data of size smallDataSetSize'''
@@ -253,10 +253,11 @@ def returnClosetCentroid(point, centroidsPrev):
     for i in range(nCentroids):
         centroid = centroidsPrev[i]
         distance = euclideanDist(centroid, point)
-        if (runningMin == None) or (distance < runningMin):
+        if (runningMin == None) or ((distance < runningMin)):
             runningMin = distance
             closetCentroidIndex = i
-        if(distance == runningMin): closetCentroidIndex = random.choice([closetCentroidIndex, i])
+
+        if((distance == runningMin)): closetCentroidIndex = random.choice([closetCentroidIndex, i])
     return closetCentroidIndex
 
 def notConverged(centroidsPrev, centroidsNew):
@@ -272,6 +273,8 @@ def notConverged(centroidsPrev, centroidsNew):
         -False: the two lists are the same
     ----
     '''
+
+
     count = len([centroid for centroid in centroidsNew if centroid not in centroidsPrev])
     count += len([centroid for centroid in centroidsPrev if centroid not in centroidsNew])
 
@@ -473,10 +476,12 @@ def runSurf(training_data, testing_data1, testing_data2):
     print "starting surf"
     pixelList = [pixels for pixels, emotion in training_data]
 
-    twoDArray = []
+    
     row = []
     surfFeaturesList = []
-    for x in range(len(pixelList)):
+    #for x in range(len(pixelList)):
+    for x in range(1): 
+        twoDArray = []
         for i in range(0, len(pixelList[x])):
             if i % 48 == 0 and i!= 0:
                 twoDArray.append(row)
@@ -485,13 +490,21 @@ def runSurf(training_data, testing_data1, testing_data2):
         twoDArray.append(row)
         print len(twoDArray)
 
-        surf = cv2.SURF(400)   
-        spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
+        #surf = cv2.SURF(400)   
+        sift = cv2.SIFT()
+        #spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
+        spoints = sift.detectAndCompute(np.uint8(np.array(twoDArray)), None)
+        
+        img2 = cv2.drawKeypoints(np.uint8(np.array(twoDArray)),spoints[0],None,(255,0,0),4)
+        plt.imshow(img2),plt.show()
+        #print spoints[1]
         surfFeaturesList.append(spoints)
     k = 7
     maxIter = 10
-    clusters = kmeans(surfFeaturesList, k, maxIter)
-    evaluateClusters(clusters, training_data, k)
+    
+    #clusters = cv2.kmeans(np.array(surfFeaturesList), k, (cv2.TERM_CRITERIA_MAX_ITER, 10, .1), 1, cv2.KMEANS_RANDOM_CENTERS)
+    #clusters = kmeans(surfFeaturesList, k, maxIter)
+    #evaluateClusters(clusters, training_data, k)
 
 
 def runBaselinePredictor(training_data, testing_data1, testing_data2):
