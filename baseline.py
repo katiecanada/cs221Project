@@ -5,6 +5,7 @@ import sys
 import random
 import collections
 import matplotlib.pyplot as plt
+import scipy.spatial.distance
 
 #''' git commit -a -m "comment" '''
 ''' 
@@ -483,6 +484,65 @@ def clusterData(data, centroids):
     return clusters
 
 
+def kmeansFeatures(data, k, maxIterations):
+    '''
+    ----
+    Function Purpose: This function performs the kmeans clustering algorithm. The
+    algorithm stops iterating once the calculated centroids converge or the max 
+    number of iterations is achieved.
+
+    Arguments: 
+        -data, a list of centroids, k, max number of iterations
+    Return Value:
+        -cluster assignments (clusters[i] = cluster data[i] is assigned to)
+        -final centroids
+    ----
+    '''
+
+    print "starting kmean clustering"
+
+    centroidsPrev = [[]] * k 
+    nDataPoints = len(data)
+    clusters = [-1] *  nDataPoints
+    centroidsNew = [{}] * k
+
+    #initialize centroids to a random sample of size K from examples
+    for i in range(k):
+        centroidsNew[i] = random.choice(data)
+
+
+    iteration = 0
+    while(notConverged(centroidsPrev, centroidsNew) and iteration < maxIterations):
+        print "iteration: ", iteration
+        centroidsPrev = list(centroidsNew)
+
+        #assign points to a centroid
+        for i in range(0, nDataPoints):
+            point = data[i]
+            closetCentroidIndex = returnClosetCentroidFeatures(point, centroidsPrev)
+            clusters[i] = closetCentroidIndex
+
+        #recalculate centroids
+        for centroidIndex in range(0, k):
+            points = [data[i] for i in range(nDataPoints) if clusters[i]==centroidIndex]
+            average = returnAverage(points)
+            if average != None: centroidsNew[centroidIndex] = average
+        iteration += 1
+
+        #if iteration%10 == 0: print "iteration: ", iteration
+
+
+    if(iteration != maxIterations): print "Converged!"
+    
+    '''print "---final centroids---"
+    print "centroids: ", centroids
+    print "iteration: ", iteration
+    print "clusters: ", clusters
+    '''
+
+    return clusters, centroidsNew
+
+
 def runSurf(training_data, testing_data1, testing_data2):
     print "starting surf"
     pixelList = [pixels for pixels, emotion in training_data]
@@ -516,6 +576,34 @@ def runSurf(training_data, testing_data1, testing_data2):
     #clusters = cv2.kmeans(np.array(surfFeaturesList), k, (cv2.TERM_CRITERIA_MAX_ITER, 10, .1), 1, cv2.KMEANS_RANDOM_CENTERS)
     #clusters = kmeans(surfFeaturesList, k, maxIter)
     #evaluateClusters(clusters, training_data, k)
+
+
+def returnClosetCentroidFeatures(point, centroidsPrev):
+    '''
+    ----
+    Function Purpose: Given a point and list of centroids, this function returns the index of the centroid
+    closest to the point. Note: if multiples centroids are equidistant to the point, the 
+    function randomly selects one of the equidistant centroids to return
+
+    Arguments: 
+        -a list representing a specfic point and a list of centroids
+    Return Value:
+        -the index of the closest centroid to the point
+    ----
+    '''
+    runningMin = None
+    closetCentroidIndex = 0 #default to being the centroid at index 0
+    nCentroids = len(centroidsPrev)
+    
+    for i in range(nCentroids):
+        centroid = centroidsPrev[i]
+        distance = scipy.spatial.distance.mahalanobis(centroid, point)
+        if (runningMin == None) or ((distance < runningMin)):
+            runningMin = distance
+            closetCentroidIndex = i
+
+        if((distance == runningMin)): closetCentroidIndex = random.choice([closetCentroidIndex, i])
+    return closetCentroidIndex
 
 
 def runBaselinePredictor(training_data, testing_data1, testing_data2):
