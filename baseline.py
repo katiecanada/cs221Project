@@ -1,3 +1,12 @@
+import numpy as np
+import mahotas as mh
+import cv2 as cv2
+import csv
+import sys
+import random
+import collections
+
+#''' git commit -a -m "comment" '''
 ''' 
 TO COMMIT ON GITHUB:
 
@@ -8,10 +17,6 @@ git commit -a -m "comment"
 git push origin master
 '''
 
-import csv
-import sys
-import random
-import collections
 
 '''Set this to true to use a truncated version of the data of size smallDataSetSize'''
 smallDataSet = True
@@ -180,12 +185,12 @@ def dotProduct(d1, d2):
         return sum(d1.get(f, 0) * v for f, v in d2.items())
 
 def increment(d1, scale, d2):
-    """
-    Implements d1 += scale * d2 for sparse vectors.
-    @param dict d1: the feature vector which is mutated.
-    @param float scale
-    @param dict d2: a feature vector.
-    """
+    # """
+    # Implements d1 += scale * d2 for sparse vectors.
+    # @param dict d1: the feature vector which is mutated.
+    # @param float scale
+    # @param dict d2: a feature vector.
+    # """
     for f, v in d2.items():
         d1[f] = d1.get(f, 0) + v * scale
 
@@ -475,6 +480,30 @@ def clusterData(data, centroids):
     return clusters
 
 
+def runSurf(training_data, testing_data1, testing_data2):
+    print "starting surf"
+    pixelList = [pixels for pixels, emotion in training_data]
+
+    twoDArray = []
+    row = []
+    surfFeaturesList = []
+    for x in range(len(pixelList)):
+        for i in range(0, len(pixelList[x])):
+            if i % 48 == 0 and i!= 0:
+                twoDArray.append(row)
+                row = []
+            row.append(pixelList[x][i])
+        twoDArray.append(row)
+        print len(twoDArray)
+
+        surf = cv2.SURF(400)   
+        spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
+        surfFeaturesList.append(spoints)
+    k = 7
+    maxIter = 10
+    clusters = kmeans(surfFeaturesList, k, maxIter)
+    evaluateClusters(clusters, training_data, k)
+
 
 def runBaselinePredictor(training_data, testing_data1, testing_data2):
     '''
@@ -547,7 +576,7 @@ def main():
     #testInputData(training_data, testing_data1, testing_data2)
 
     runBaselinePredictor(training_data, testing_data1, testing_data2)
-
+    runSurf(training_data, testing_data1, testing_data2)
 
 if __name__ == '__main__':
   main()
