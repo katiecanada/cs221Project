@@ -15,7 +15,7 @@ import collections
 
 '''Set this to true to use a truncated version of the data of size smallDataSetSize'''
 smallDataSet = True
-smallDataSetSize = 100 #number of data points in the smaller data set (for both the test and train data)
+smallDataSetSize = 500 #number of data points in the smaller data set (for both the test and train data)
 
 def parseData(file_name):
     '''
@@ -350,6 +350,7 @@ def evaluateClusters(clusterAssignments, data, k):
     correct = 0
     nDataPoints = len(clusterAssignments)
     for i in range(0, nDataPoints):
+        if clusterAssignments[i] not in kmeansGroup_to_trueGroup: continue
         if kmeansGroup_to_trueGroup[clusterAssignments[i]] == data[i][1]: correct +=1
 
     
@@ -365,74 +366,81 @@ def evaluateClusters(clusterAssignments, data, k):
 def detmineGroupMapping(clusterAssignments, data, k):
     '''
     Returns a dictionary with:
-        -key: cluster number given by running kmeans (integer in range [0,k-1])
-        -value: the input data's original cluster number for this grouping
+        -key: cluster index (integer in range [0,k-1])
+        -value: emotion category assigned to this cluster (integer in range[0,k-1])
 
-    ex: kmeansGroup_to_trueGroup[guessed group number] --> True Group number
+    ex: kmeansClusterIndex_to_emotion[clusterIndex] --> emotion
+
+    This function also provides code for two different approaches for cluster/emotion assignemnt
     '''
 
-    #trueEmotionCounter[true Group number] = total number of this emotion type in data
-    trueEmotionCounter = collections.Counter()
-    clusterList = [] #list of length k, clusterList[0] = a counter of how many of each true emotion type were clustered to group 0
+
+
+    #emotionCounter[emotion] = number of data points in the data set classified as this emotion
+    emotionCounter = collections.Counter()
+    clusterList = [] #list of length k, clusterList[0] = a counter of how many data points of each emotion type were clustered to group 0
     for i in xrange(0, k): clusterList.append(collections.Counter())
     for i in range(0, len(clusterAssignments)):
-        guessedGroup = clusterAssignments[i]
-        trueGroup = data[i][1]
-        trueEmotionCounter[trueGroup] += 1
-        clusterList[guessedGroup][trueGroup] += 1
+        clusterIndex = clusterAssignments[i]
+        emotion = data[i][1]
+        emotionCounter[emotion] += 1
+        clusterList[clusterIndex][emotion] += 1
 
-    clusterPercentList = []##list of length k, clusterPercentList[guessedGroup] = dictionary (key: true emotion type --> value: percent of this emotion type mapped to this guessed group)
+    clusterPercentList = []##list of length k, clusterPercentList[clusterIndex] = dictionary (key: emotion --> value: percent of this emotion's total data points assigned to this cluster)
     for i in xrange(0, k): clusterPercentList.append(dict())
-    for guessedGroup in range(0, k):
-        counter = clusterList[guessedGroup]
-        for trueGroup, count in counter.items():  clusterPercentList[guessedGroup][trueGroup] = float(count)/float(trueEmotionCounter[trueGroup])
+    for clusterIndex in range(0, k):
+        counter = clusterList[clusterIndex]
+        for emotion, count in counter.items():  clusterPercentList[clusterIndex][emotion] = float(count)/float(emotionCounter[emotion])
 
 
     print "cluster list: ", clusterList
-    print "trueEmotionCounter: ", trueEmotionCounter
+    print "emotionCounter: ", emotionCounter
     print "clusterPercentList: ", clusterPercentList
 
-    
-    kmeansGroup_to_trueGroup = dict()
+
+
+    '''code to assign a cluster to the emotion that is most represented (based on count) in that cluster'''
+    kmeansClusterIndex_to_emotion = dict()
     for i in range(0,k):
-        if len(clusterList[i].most_common(1)) == 0: kmeansGroup_to_trueGroup[i] = None
-        else: kmeansGroup_to_trueGroup[i] = (clusterList[i].most_common(1))[0][0]
-        #kmeansGroup_to_trueGroup[guessed group number] --> True Group number
+        if len(clusterList[i].most_common(1)) == 0: kmeansClusterIndex_to_emotion[i] = None
+        else: kmeansClusterIndex_to_emotion[i] = (clusterList[i].most_common(1))[0][0]
+        #kmeansClusterIndex_to_emotion[clusterIndex] --> emotion
 
-    print "kmeansGroup --> trueGroup: ", kmeansGroup_to_trueGroup
-    return kmeansGroup_to_trueGroup
+    print "kmeansClusterIndex --> emotion: ", kmeansClusterIndex_to_emotion
+    return kmeansClusterIndex_to_emotion
 
 
 
-    '''
-    code to map a true group to the guessed group containing the highest percent of the true groups data points
-    STILL DEBUGGING
+    
+    '''code to assign an emotion to the cluster containing the highest percent of the emotion's data points'''
+    
+    '''#determine assignment by assigning an emotion to the cluster containing the highest percent of the emotion's data points
+    kmeansClusterIndex_to_emotion = dict()
 
-    #determine mapping by assigning a true group to the guessed group containing the highest percent of the true groups data points
-    kmeansGroup_to_trueGroup = dict()
+    #assign emotions to clusters in order of least prevelant emotion first
 
-    #assign the least prevelant emotion category to a guessed group first
-    sortedTrueEmotionsReverseOrder = sorted(list(trueEmotionCounter))
-    sortedTrueEmotions = []
-    for item in reversed(sortedTrueEmotionsReverseOrder):
-        sortedTrueEmotions.append(item)
+        #work around code to sort emotions by count
+    emotionCounterRevItems = [(count, emotion) for emotion, count in emotionCounter.items()]
+    sortedEmotions = sorted(emotionCounterRevItems)
+    print "sortedEmotions: ", sortedEmotions
 
-    #sortedTrueEmotions = sorted(trueEmotionCounter.keys())
-    print "sortedTrueEmotions: ", sortedTrueEmotions
-    for trueGroup, count in sortedTrueEmotions:
+
+    for count, emotion in sortedEmotions:
         highestPercent = None
-        bestGroup = None
-        for guessedGroup, percentCounter in clusterPercentList: 
-            if guessedGroup in kmeansGroup_to_trueGroup: continue
-            if(bestGroup == None or percentCounter[trueGroup] > highestPercent):
-                bestGroup = guessedGroup
-                highestPercent = percentCounter[trueGroup]
-        kmeansGroup_to_trueGroup[bestGroup] = trueGroup
+        bestCluster = None
+        for clusterIndex in range(0, len(clusterPercentList)):
+            if clusterIndex in kmeansClusterIndex_to_emotion: continue #don't want to assign two different emotions to the same cluster
+            percentCounter = clusterPercentList[clusterIndex]
+            if emotion not in percentCounter: continue
+            if bestCluster == None or percentCounter[emotion] > highestPercent:
+                bestCluster = clusterIndex
+                highestPercent = percentCounter[emotion]
+        kmeansClusterIndex_to_emotion[bestCluster] = emotion
 
-    print "kmeansGroup --> trueGroup: ", kmeansGroup_to_trueGroup
-    return kmeansGroup_to_trueGroup
+    print "kmeansClusterIndex--> emotion: ", kmeansClusterIndex_to_emotion
+    return kmeansClusterIndex_to_emotion'''
+    
 
-    '''
 
 def convertDataPointsToDictionaries(data):
     ''' 
@@ -498,7 +506,7 @@ def runBaselinePredictor(training_data, testing_data1, testing_data2):
     
     '''kmeans clustering'''
 
-    k = 6
+    k = 7
     maxIter = 30
     clusters, centroids = kmeans(trainingPixelList, k, maxIter)
     evaluateClusters(clusters, training_data, k)
