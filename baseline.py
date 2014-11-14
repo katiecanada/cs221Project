@@ -6,6 +6,7 @@ import random
 import collections
 import matplotlib.pyplot as plt
 import scipy.spatial.distance
+import scipy.cluster.vq
 
 
 '''Set this to true to use a truncated version of the data of size smallDataSetSize'''
@@ -205,9 +206,14 @@ def euclideanDist(point1, point2):
 
     nDimensions = len(point1)
     sqSum = 0
-    for i in range(nDimensions):
-        sqDifference = (point1[i] - point2[i])**(2.0)
-        sqSum += sqDifference
+    if point2 != []:
+        for i in range(nDimensions):
+            sqDifference = (point1[i] - point2[i])**(2.0)
+            sqSum += sqDifference
+    else:
+        for i in range(nDimensions):
+            sqDifference = (point1[i])**(2.0)
+            sqSum += sqDifference
     
     return sqSum**(1.0/2.0)
 
@@ -230,7 +236,7 @@ def returnAverage(pointList):
     average = [0] * nDimensions
 
     for point in pointList:
-        for i in range(0, nDimensions):
+        for i in range(0, len(point)):
             average[i] += 1.0/nPoints * point[i]
     return average
 
@@ -275,8 +281,14 @@ def notConverged(centroidsPrev, centroidsNew):
     ----
     '''
 
-
     count = len([centroid for centroid in centroidsNew if centroid not in centroidsPrev])
+    # count = 0
+    # for centroid in centroidsNew:
+    #     for point in centroid:
+    #         print point
+    #         if point not in centroidsPrev.any():
+    #             count+=1
+
     count += len([centroid for centroid in centroidsPrev if centroid not in centroidsNew])
 
     return count != 0
@@ -378,6 +390,7 @@ def detmineGroupMapping(clusterAssignments, data, k):
     emotionCounter = collections.Counter()
     clusterList = [] #list of length k, clusterList[0] = a counter of how many data points of each emotion type were clustered to group 0
     for i in xrange(0, k): clusterList.append(collections.Counter())
+    print len(clusterAssignments)
     for i in range(0, len(clusterAssignments)):
         clusterIndex = clusterAssignments[i]
         emotion = data[i][1]
@@ -473,126 +486,135 @@ def clusterData(data, centroids):
     return clusters
 
 
-def kmeansFeatures(data, k, maxIterations):
-    '''
-    ----
-    Function Purpose: This function performs the kmeans clustering algorithm. The
-    algorithm stops iterating once the calculated centroids converge or the max 
-    number of iterations is achieved.
-
-    Arguments: 
-        -data, a list of centroids, k, max number of iterations
-    Return Value:
-        -cluster assignments (clusters[i] = cluster data[i] is assigned to)
-        -final centroids
-    ----
-    '''
-
-    print "starting kmean clustering"
-
-    centroidsPrev = [[]] * k 
-    nDataPoints = len(data)
-    clusters = [-1] *  nDataPoints
-    centroidsNew = [{}] * k
-
-    #initialize centroids to a random sample of size K from examples
-    for i in range(k):
-        centroidsNew[i] = random.choice(data)
-
-
-    iteration = 0
-    while(notConverged(centroidsPrev, centroidsNew) and iteration < maxIterations):
-        print "iteration: ", iteration
-        centroidsPrev = list(centroidsNew)
-
-        #assign points to a centroid
-        for i in range(0, nDataPoints):
-            point = data[i]
-            closetCentroidIndex = returnClosetCentroidFeatures(point, centroidsPrev)
-            clusters[i] = closetCentroidIndex
-
-        #recalculate centroids
-        for centroidIndex in range(0, k):
-            points = [data[i] for i in range(nDataPoints) if clusters[i]==centroidIndex]
-            average = returnAverage(points)
-            if average != None: centroidsNew[centroidIndex] = average
-        iteration += 1
-
-        #if iteration%10 == 0: print "iteration: ", iteration
-
-
-    if(iteration != maxIterations): print "Converged!"
-    
-    '''print "---final centroids---"
-    print "centroids: ", centroids
-    print "iteration: ", iteration
-    print "clusters: ", clusters
-    '''
-
-    return clusters, centroidsNew
-
 
 def runSurf(training_data, testing_data1, testing_data2):
     print "starting surf"
     pixelList = [pixels for pixels, emotion in training_data]
 
     
-    row = []
-    surfFeaturesList = []
+    featureToImageMap = []
+    #surfFeaturesList = []
+    surfFeaturesList = [[]]*len(pixelList)
     #for x in range(len(pixelList)):
-    for x in range(1): 
+    for x in range(0,2): 
+        row = []
+
         twoDArray = []
+
+
         for i in range(0, len(pixelList[x])):
             if i % 48 == 0 and i!= 0:
                 twoDArray.append(row)
                 row = []
             row.append(pixelList[x][i])
         twoDArray.append(row)
-        print len(twoDArray)
+        
 
         #surf = cv2.SURF(400)   
         sift = cv2.SIFT()
         #spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
         spoints = sift.detectAndCompute(np.uint8(np.array(twoDArray)), None)
         
-        img2 = cv2.drawKeypoints(np.uint8(np.array(twoDArray)),spoints[0],None,(255,0,0),4)
-        plt.imshow(img2),plt.show()
-        #print spoints[1]
-        surfFeaturesList.append(spoints)
+        #img2 = cv2.drawKeypoints(np.uint8(np.array(twoDArray)),spoints[0],None,(255,0,0),4)
+        #plt.imshow(img2),plt.show()
+        
+        #covar = np.cov(spoints[1], rowvar=0)
+        #covar.shape()
+        #invcovar = np.linalg.inv(covar.reshape((1,1)))
+        #invcovar = np.linalg.inv(covar)
+        
+        #only add 1st feature for simplicity with kmeans:
+        # if spoints is not None and spoints[1] is not None:
+        #     surfFeaturesList.append(list(spoints[1][0]))
+        # else:
+        #     surfFeaturesList.append([])
+
+        # #add all features as independant points to kmeans:
+        # if spoints is not None and spoints[1] is not None:
+        #     for point in spoints[1]:
+        #         surfFeaturesList.append(list(point))
+        #         featureToImageMap.append(x) #specifys that this feature maps to this image
+
+        #add concatenate all features to a giant feature
+        
+        if spoints is not None and spoints[1] is not None:
+            for point in spoints[1]:
+                for i in point:
+                    surfFeaturesList[x].append(i)
+        else: 
+            surfFeaturesList[x] = [1]
+    #
+    #normalize features list before kmeans
+    #np.linalg.norm(surfFeaturesList)
+    surfFeaturesList = scipy.cluster.vq.whiten(surfFeaturesList)
+    #print "after",surfFeaturesList[0]
+
     k = 7
     maxIter = 10
     
+    #print cv2.BFMatcher().match(surfFeaturesList[0], surfFeaturesList[1])
+
     #clusters = cv2.kmeans(np.array(surfFeaturesList), k, (cv2.TERM_CRITERIA_MAX_ITER, 10, .1), 1, cv2.KMEANS_RANDOM_CENTERS)
-    #clusters = kmeans(surfFeaturesList, k, maxIter)
+    #clusters, centroids = kmeansFeatures(surfFeaturesList, k, maxIter)
     #evaluateClusters(clusters, training_data, k)
-
-
-def returnClosetCentroidFeatures(point, centroidsPrev):
-    '''
-    ----
-    Function Purpose: Given a point and list of centroids, this function returns the index of the centroid
-    closest to the point. Note: if multiples centroids are equidistant to the point, the 
-    function randomly selects one of the equidistant centroids to return
-
-    Arguments: 
-        -a list representing a specfic point and a list of centroids
-    Return Value:
-        -the index of the closest centroid to the point
-    ----
-    '''
-    runningMin = None
-    closetCentroidIndex = 0 #default to being the centroid at index 0
-    nCentroids = len(centroidsPrev)
     
-    for i in range(nCentroids):
-        centroid = centroidsPrev[i]
-        distance = scipy.spatial.distance.mahalanobis(centroid, point)
-        if (runningMin == None) or ((distance < runningMin)):
-            runningMin = distance
-            closetCentroidIndex = i
+    clusters, centroids = kmeans(surfFeaturesList, k, maxIter)
 
-        if((distance == runningMin)): closetCentroidIndex = random.choice([closetCentroidIndex, i])
-    return closetCentroidIndex
+    #if clustering on many features per image: 
+    #clusters = getActualClusters(clusters, featureToImageMap)
+    
+    evaluateClusters(clusters, training_data, k)
+   # evaluateClusters(actualClusters, training_data, k)
+
+
+    def getActualClusters(clusters):
+        '''
+        takes in a the cluster assignments for independant features,
+        determines which images those features correspond to, 
+        assigns the image to the cluster to which most of its features are assigned,
+        returns cluster list in the expected form of a dict declaring which cluster each image is assigned to
+        '''
+        actualClusters = [0] * len(pixelList, featureToImageMap)
+        prevImage = -1
+        imageAssignments = [] 
+        for i in range(len(clusters)):
+            image = featureToImageMap[i]
+            if image == prevImage:
+                imageAssignments.append(clusters[i])
+            else:
+                if prevImage != (-1):
+                    if imageAssignments == []:
+                        actualClusters[prevImage] = random.randrange(0,7)
+                    else:    
+    #                 print imageAssignments
+    #                 print max(set(imageAssignments), key=imageAssignments.count)
+                        actualClusters[prevImage] = max(set(imageAssignments), key=imageAssignments.count)
+                imageAssignments = []
+            prevImage = image
+        return actualClusters
+
+
+
+# def returnClosetCentroidFeatures(point, centroidsPrev):
+#     '''
+#     attempt to reqwrite the return closest centroid features to work with sift/surf features. currently does nothing/not used
+#     ----
+#     '''
+#     runningMin = None
+#     closetCentroidIndex = 0 #default to being the centroid at index 0
+#     nCentroids = len(centroidsPrev)
+#     for i in range(nCentroids):
+#         centroid = centroidsPrev[i]
+#         covar = np.cov(point, rowvar=0)
+#         invcovar = np.linalg.inv(covar)
+#        # distance = scipy.spatial.distance.mahalanobis(centroid, point, invcovar)
+#         distance = len(cv2.BFMatcher().match(np.array(centroid), np.array(point)))
+#         if (runningMin == None) or ((distance < runningMin)):
+#             runningMin = distance
+#             closetCentroidIndex = i
+
+#         if((distance == runningMin)): closetCentroidIndex = random.choice([closetCentroidIndex, i])
+#     return closetCentroidIndex
 
 
 def runBaselinePredictor(training_data, testing_data1, testing_data2):
@@ -626,7 +648,7 @@ def runBaselinePredictor(training_data, testing_data1, testing_data2):
     '''kmeans clustering'''
 
     k = 7
-    maxIter = 30
+    maxIter = 1
     clusters, centroids = kmeans(trainingPixelList, k, maxIter)
     evaluateClusters(clusters, training_data, k)
 
@@ -665,7 +687,7 @@ def main():
     training_data, testing_data1, testing_data2 = parseData(sys.argv[1])
     #testInputData(training_data, testing_data1, testing_data2)
 
-    runBaselinePredictor(training_data, testing_data1, testing_data2)
+    #runBaselinePredictor(training_data, testing_data1, testing_data2)
     runSurf(training_data, testing_data1, testing_data2)
 
 if __name__ == '__main__':
