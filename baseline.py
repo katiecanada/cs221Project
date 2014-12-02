@@ -370,7 +370,10 @@ def kmeans(data, k, maxIterations):
 
     #initialize centroids to a random sample of size K from examples
     for i in range(k):
-        centroidsNew[i] = random.choice(data)
+        choice = None
+        while(choice == None):
+            choice = random.choice(data)
+        centroidsNew[i] = choice
 
 
     iteration = 0
@@ -380,9 +383,11 @@ def kmeans(data, k, maxIterations):
 
         #assign points to a centroid
         for i in range(0, nDataPoints):
-            point = data[i]
-            closetCentroidIndex = returnClosetCentroid(point, centroidsPrev)
-            clusters[i] = closetCentroidIndex
+            if data[i] != None:
+                point = data[i]
+                closetCentroidIndex = returnClosetCentroid(point, centroidsPrev)
+                clusters[i] = closetCentroidIndex
+            else: clusters[i] = None
 
         #recalculate centroids
         for centroidIndex in range(0, k):
@@ -403,6 +408,65 @@ def kmeans(data, k, maxIterations):
     '''
 
     return clusters, centroidsNew
+
+
+def evaluatePartionedClusters(eye1ClusterAssignments, eye2ClusterAssignments, mouthClusterAssignments, data, k):
+    '''
+    function purpose: measure the accuracy of clustering by partitioning into eye1, eye2, and 
+        mouthClusters. Each image has a sift feature placed run through eye1Kmeans, eye2Kmeans, and 
+        mouthKmeans. These cluster assignments are denoated in the corresponding arguments to this 
+        function. The most common emotion each image is mapped to is the final emotion the image
+        is to predicted to represent.
+        (NOTE: if an image doesn't have a sift feature that maps to one of these areas,
+        it submits a feature of 'None' which is overlooked in the Kmeans implementation).
+    arguments:
+        -eye1ClusterAssignments: eye1ClusterAssignments[0] = the cluster eye1 of the 1st image was assigned to
+        -eye2ClusterAssignments: eye2ClusterAssignments[0] = the cluster eye2 of the 1st image was assigned to
+        -mouthClusterAssignments: mouthClusterAssignments[0] = the cluster the mouth of the 1st image was assigned to
+
+    '''
+
+    eye1_kmeansGroup_to_trueGroup = detmineGroupMapping(eye1ClusterAssignments, data, k)
+    eye2_kmeansGroup_to_trueGroup = detmineGroupMapping(eye2ClusterAssignments, data, k)
+    mouth_kmeansGroup_to_trueGroup = detmineGroupMapping(mouthClusterAssignments, data, k)
+
+    correct = 0
+    nDataPoints = len(eye1ClusterAssignments)
+    dataPointsCounted = 0
+    for i in range(0, nDataPoints):
+        counter = collections.Counter()
+        
+        eye1ClusterAssignment = eye1ClusterAssignments[i]
+        if eye1ClusterAssignment != None and eye1ClusterAssignment in eye1_kmeansGroup_to_trueGroup: 
+            counter[eye1_kmeansGroup_to_trueGroup[eye1ClusterAssignment]] += 1
+
+
+        eye2ClusterAssignment = eye2ClusterAssignments[i]
+        if eye2ClusterAssignment != None and eye2ClusterAssignment in eye2_kmeansGroup_to_trueGroup:
+            counter[eye2_kmeansGroup_to_trueGroup[eye2ClusterAssignment]] += 1
+
+        mouthClusterAssignment = mouthClusterAssignments[i]
+        if mouthClusterAssignment != None and mouthClusterAssignment in mouth_kmeansGroup_to_trueGroup:
+            counter[mouth_kmeansGroup_to_trueGroup[mouthClusterAssignment]] += 1
+        
+        
+        mostCommonList = counter.most_common(1)
+        if len(mostCommonList) == 0: continue
+        
+        dataPointsCounted += 1
+        maxCategory, maxCount = mostCommonList[0]
+        if maxCount < 2:
+            if eye1_kmeansGroup_to_trueGroup[eye1ClusterAssignment] == data[i][1]: correct += 1
+        else:
+            if maxCategory == data[i][1]: correct +=1
+
+    
+    accuracy = float(correct)/float(dataPointsCounted)
+
+    print "----RESULTS----"
+    print "nDataPoints: ", nDataPoints
+    print "k: ", k
+    print "accuracy: ", accuracy
 
 
 def evaluateClusters(clusterAssignments, data, k):
@@ -444,10 +508,11 @@ def detmineGroupMapping(clusterAssignments, data, k):
     for i in xrange(0, k): clusterList.append(collections.Counter())
     print len(clusterAssignments)
     for i in range(0, len(clusterAssignments)):
-        clusterIndex = clusterAssignments[i]
-        emotion = data[i][1]
-        emotionCounter[emotion] += 1
-        clusterList[clusterIndex][emotion] += 1
+        if clusterAssignments[i] != None:
+            clusterIndex = clusterAssignments[i]
+            emotion = data[i][1]
+            emotionCounter[emotion] += 1
+            clusterList[clusterIndex][emotion] += 1
 
     clusterPercentList = []##list of length k, clusterPercentList[clusterIndex] = dictionary (key: emotion --> value: percent of this emotion's total data points assigned to this cluster)
     for i in xrange(0, k): clusterPercentList.append(dict())
@@ -467,8 +532,7 @@ def detmineGroupMapping(clusterAssignments, data, k):
     assign a cluster to the emotion that is most represented (based on count) in that cluster
     -----
     '''
-    '''kmeansClusterIndex_to_emotion = dict()
-    
+    ''' 
 
     kmeansClusterIndex_to_emotion = dict()
     for i in range(0,k):
@@ -595,21 +659,51 @@ def fancyFeatureExtractor(extractor, image):
 
     return spoints
 
+def map_point_to_section(point):
+    x, y = point
+    if x <= 23:
+        if y <= 23: return "eye1"
+        else: return "eye2"
+    else: return "mouth"
+
+def getPartitionedFeatures(spoints):
+    eye1 = None
+    eye2 = None
+    mouth = None
+
+    keypoints, featureVectors = spoints
+    for i in range(0, keypoints):
+        keypoint = keypoints[i]
+        center = keypoint.pt
+        faceSection = map_point_to_section(center)
+        if faceSection == "eye1" and eye1 == None: eye1 = featureVectors[i]
+        elif faceSection == "eye2" and eye2 == None: eye2 = featureVectors[i]
+        elif faceSection == "mouth" and mouth == None: mouth = featureVectors[i]
+
+    return eye1, eye2, mouth
+
 def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
     print "starting surf"
     
     #///////////////////// flags ///////////////////
     normalize = False
     kmeanstype = "first" #"concat" # or "first" or "independant" # use this flag to determine how to handle features for kmeans
+    kmeanstype = "partitioned"
    #////////////////////////////////////////////////
 
-    pixelList = [pixels for pixels, emotion in testing_data1]
+    data = training_data
+    pixelList = [pixels for pixels, emotion in data]
     
     featureToImageMap = []
     
     surfFeaturesList = []
     if kmeanstype == "concat":
         surfFeaturesList = [[]]*len(pixelList)
+
+    eye1FeatureList = []
+    eye2FeatureList = []
+    mouthFeatureList = []
+
     #for x in range(1):
     for x in range(len(pixelList)):
         twoDArray = get2dImage(pixelList[x])
@@ -638,26 +732,42 @@ def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
             # else: 
             #     surfFeaturesList[x] = [1]
 
+        #parition 3 image keypoints into: eye1, eye2, mouth. Run kmeans 3 separate times
+        if kmeanstype == "partitioned":
+            eye1Feature, eye2Feature, mouthFeature = getPartitionedFeatures(spoints)
+            eye1FeatureList.append(eye1Feature)
+            eye2FeatureList.append(eye2Feature)
+            mouthFeatureList.append(mouthFeature)
+
     #normalize features list before kmeans
     if normalize:
         np.linalg.norm(surfFeaturesList)
         surfFeaturesList = scipy.cluster.vq.whiten(surfFeaturesList)
 
-    k = 7
-    maxIter = 10
     
-    #print cv2.BFMatcher().match(surfFeaturesList[0], surfFeaturesList[1])
-    #clusters = cv2.kmeans(np.array(surfFeaturesList), k, (cv2.TERM_CRITERIA_MAX_ITER, 10, .1), 1, cv2.KMEANS_RANDOM_CENTERS)
-    #clusters, centroids = kmeansFeatures(surfFeaturesList, k, maxIter)
-    #evaluateClusters(clusters, training_data, k)
+    if kmeanstype != "partitioned":
+        k = 7
+        maxIter = 10
+        
+        #print cv2.BFMatcher().match(surfFeaturesList[0], surfFeaturesList[1])
+        #clusters = cv2.kmeans(np.array(surfFeaturesList), k, (cv2.TERM_CRITERIA_MAX_ITER, 10, .1), 1, cv2.KMEANS_RANDOM_CENTERS)
+        #clusters, centroids = kmeansFeatures(surfFeaturesList, k, maxIter)
+        #evaluateClusters(clusters, training_data, k)
+        
+
+        clusters, centroids = kmeans(surfFeaturesList, k, maxIter)
+
+        if independant: 
+            clusters = getActualClusters(clusters, featureToImageMap, pixelList)
+
+        evaluateClusters(clusters, data, k)
     
+    else:
+        eye1Clusters, eye1Centroids = kmeans(eye1FeatureList, k, maxIter)
+        eye2Clusters, eye2Centroids = kmeans(eye2FeatureList, k, maxIter)
+        mouthClusters, mouthCentroids = kmeans(mouthFeatureList, k, maxIter)
 
-    clusters, centroids = kmeans(surfFeaturesList, k, maxIter)
-
-    if independant: 
-        clusters = getActualClusters(clusters, featureToImageMap, pixelList)
-
-    evaluateClusters(clusters, training_data, k)
+        evaluatePartionedClusters(eye1Clusters, eye2Clusters, mouthClusters, data, k)
 
 
 def runNearestNeighbours(training_data, testing_data1, testing_data2, extractor):
@@ -909,10 +1019,10 @@ def main():
 
     testData = testing_data1
 
-    #runSGD(training_data, testData)
+    runSGD(training_data, testData)
 
-    runKmeans(training_data, testData)
-    runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
+    #runKmeans(training_data, testData)
+    #runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
     #runNearestNeighbours(training_data, testing_data1, testing_data2, "surf")
 
 if __name__ == '__main__':
