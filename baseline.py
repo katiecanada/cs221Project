@@ -1,5 +1,5 @@
 import numpy as np
-#import cv2 as cv2
+import cv2 as cv2
 import csv
 import sys
 import random
@@ -193,7 +193,7 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
         eta = 1 / ((i + 1)**(1/2.0)) #step size dependent on the interation number
         for x, y in trainExamples:
             phi = featureExtractor(x)
-
+            #print phi
             dominantWeightIndex = getMaxBranchIndex(weightList, y, phi)
             if dominantWeightIndex != y:
                 HLG = phi
@@ -223,11 +223,13 @@ def dotProduct(d1, d2):
     @param dict d2: same as d1
     @return float: the dot product between d1 and d2
     """
-    if len(d1) < len(d2):
-        return dotProduct(d2, d1)
+    if d1 is not None and d2 is not None:
+        if len(d1) < len(d2):
+            return dotProduct(d2, d1)
+        else:
+            return sum(d1.get(f, 0) * v for f, v in d2.items())
     else:
-        return sum(d1.get(f, 0) * v for f, v in d2.items())
-
+        return 0
 
 
 ''' ---------- KMEANS CLUSTERING CODE ----------- '''
@@ -572,10 +574,53 @@ def get2dImage(image):
 
 
 def faceFeatureExtractor(image):
-    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-    (x,y,w,h) = face_cascade.detectMultiScale(np.array(image), 1.3, 5)[0]
-    print x,y,w,h
-    
+    image = get2dImage(image)
+    features = {}
+    image =  np.uint8(np.array(image))
+    face_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/haarcascade_frontalface_default.xml')
+    face = face_cascade.detectMultiScale(image)
+    facewidth = 48.0
+    faceheight = 48.0
+    if len(face) ==1 :
+        f = face[0]
+        #features["facex"] = f[0]
+        #features["facey"] = f[1]
+        #features["facew"] = f[2]
+        facewidth = f[2]
+        #features["faceh"] = f[3]
+        faceheight = f[3]
+        # cv2.rectangle(image,(f[0],f[1]),(f[0]+f[2],f[1]+f[3]),(255,0,0),2)
+        # cv2.imshow('img',image)
+        
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+    eye_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/haarcascade_eye.xml')
+    eye = eye_cascade.detectMultiScale(image)
+    if len(eye)>=1:
+        e = eye[0]
+        #features["eye1x"] = e[0]
+        #features["eye1y"] = e[1]
+        # print "e1w", e[2]
+        # print "e1h", e[3]
+        features["eye1w"] = e[2]/facewidth
+        features["eye1h"] = e[3]/faceheight
+    if len(eye)>=2:
+        e = eye[1]
+        #features["eye2x"] = e[0]
+        #features["eye2y"] = e[1]
+        features["eye2w"] = e[2]/facewidth
+        features["eye2h"] = e[3]/faceheight
+
+    smile_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/haarcascade_smile.xml')
+    smile = smile_cascade.detectMultiScale(image)
+    if len(smile)>=1:
+        s = smile[0]
+        features["smilew"] = s[2]/facewidth
+        features["smileh"] = s[3]/faceheight        
+
+    return features
+
 
 #takes in the name of the extractor "sift", "surf", or "fast" and a 2-d pixel array
 #returns list of sift features in the form ([list of key points, array(list of descriptor lists)]
@@ -853,7 +898,8 @@ def runSGD(training_data, testing_data):
     '''
     This function holds code to run stochastic gradient descent
     '''
-    learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
+    #learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
+    learnPredictor(training_data, testing_data, faceFeatureExtractor)
 
 def runKmeans(training_data, testing_data):
     '''
@@ -917,10 +963,10 @@ def main():
 
     testData = testing_data1
 
-    #runSGD(training_data, testData)
+    runSGD(training_data, testData)
 
-    runKmeans(training_data, testData)
-    runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
+    #runKmeans(training_data, testData)
+    #runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
     #runNearestNeighbours(training_data, testing_data1, testing_data2, "surf")
 
 if __name__ == '__main__':
