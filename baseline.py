@@ -485,20 +485,49 @@ def clusterData(data, centroids):
 
     return clusters
 
+def get2dImage(image):
+    row = []
+    twoDArray = []
+    for i in range(0, len(image)):
+        if i % 48 == 0 and i!= 0:
+            twoDArray.append(row)
+            row = []
+        row.append(image[i])
+    twoDArray.append(row)
+    return twoDArray
 
+#takes in the name of the extractor "sift", "surf", or "fast" and a 2-d pixel array
+#returns list of sift features in the form ([list of key points, array(list of descriptor lists)]
+def fancyFeatureExtractor(extractor, image):
+    drawImage = False
+    spoints = {}
+    if extractor == "sift":
+        sift = cv2.SIFT()
+        spoints = sift.detectAndCompute(np.uint8(np.array(image)), None)
 
-def runSurf(training_data, testing_data1, testing_data2):
+    elif extractor == "surf":
+        surf = cv2.SURF(0)   
+        spoints = surf.detectAndCompute(np.uint8(np.array(image)), None)
+    elif extractor == "fast":
+        image = np.array(twoDArray, dtype=np.uint8)
+        fast = cv2.FastFeatureDetector()
+        kp = fast.detect(image)
+        freak = cv2.DescriptorExtractor_create('SURF')
+        spoints = freak.compute(image,kp)
+
+    if drawImage:
+        img2 = cv2.drawKeypoints(np.uint8(np.array(image)),spoints[0],None,(255,0,0),4)
+        plt.imshow(img2),plt.show()
+
+    return spoints
+
+def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
     print "starting surf"
     
     #///////////////////// flags ///////////////////
-    extractor = "surf" #"surf" # or "sift" # use this flag to set the feature extractor
-    drawImage = True
     normalize = False
-    kmeanstype = None #"concat" # or "first" or "independant" # use this flag to determine how to handle features for kmeans
-    algorithm = "neighbours" # kmeans or "neighbours"
+    kmeanstype = "first" #"concat" # or "first" or "independant" # use this flag to determine how to handle features for kmeans
    #////////////////////////////////////////////////
-    numCorrect = 0.0
-    totalNum = 0.0
 
     pixelList = [pixels for pixels, emotion in testing_data1]
     
@@ -509,51 +538,9 @@ def runSurf(training_data, testing_data1, testing_data2):
         surfFeaturesList = [[]]*len(pixelList)
     #for x in range(1):
     for x in range(len(pixelList)):
-        row = []
-        twoDArray = []
-
-
-        for i in range(0, len(pixelList[x])):
-            if i % 48 == 0 and i!= 0:
-                twoDArray.append(row)
-                row = []
-            row.append(pixelList[x][i])
-        twoDArray.append(row)
-        
-        spoints = None
-        if extractor == "sift":
-            sift = cv2.SIFT()
-            spoints = sift.detectAndCompute(np.uint8(np.array(twoDArray)), None)
-        elif extractor == "surf":
-            surf = cv2.SURF(0)   
-            spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
-        elif extractor == "fast":
-            image = np.array(twoDArray, dtype=np.uint8)
-            fast = cv2.FastFeatureDetector()
-            kp = fast.detect(image)
-            freak = cv2.DescriptorExtractor_create('SURF')
-            spoints = freak.compute(image,kp)   
-
-
-        if drawImage:
-            img2 = cv2.drawKeypoints(np.uint8(np.array(twoDArray)),spoints[0],None,(255,0,0),4)
-            plt.imshow(img2),plt.show()
-        
-        if algorithm == "neighbours":
-            assignment = nearestNeighbour(twoDArray, spoints, training_data, extractor)
-            totalNum += 1
-            if assignment == testing_data1[x][1]:
-                #print "correct"
-                numCorrect +=1
-           # else: 
-               #print "incorrect"
-
-        # if normalize: # WHAT DOES THIS DO???????????
-        #     covar = np.cov(spoints[1], rowvar=0)
-        #     covar.shape()
-        #     invcovar = np.linalg.inv(covar.reshape((1,1)))
-        #     invcovar = np.linalg.inv(covar)
-        
+        twoDArray = get2dImage(pixelList[x])
+        spoints = fancyFeatureExtractor("sift", twoDArray)
+ 
         #only add 1st feature for simplicity with kmeans:
         if kmeanstype == "first":
             if spoints is not None and spoints[1] is not None:
@@ -576,11 +563,6 @@ def runSurf(training_data, testing_data1, testing_data2):
                         surfFeaturesList[x].append(i)
             # else: 
             #     surfFeaturesList[x] = [1]
-    
-
-    if algorithm == "neighbours":
-        print "accuracy: ", numCorrect/totalNum
-        return
 
     #normalize features list before kmeans
     if normalize:
@@ -596,22 +578,34 @@ def runSurf(training_data, testing_data1, testing_data2):
     #clusters, centroids = kmeansFeatures(surfFeaturesList, k, maxIter)
     #evaluateClusters(clusters, training_data, k)
     
-    if algorithm == "kmeans":
-        clusters, centroids = kmeans(surfFeaturesList, k, maxIter)
 
-        if independant: 
-            clusters = getActualClusters(clusters, featureToImageMap, pixelList)
-    
-        evaluateClusters(clusters, training_data, k)
+    clusters, centroids = kmeans(surfFeaturesList, k, maxIter)
 
+    if independant: 
+        clusters = getActualClusters(clusters, featureToImageMap, pixelList)
+
+    evaluateClusters(clusters, training_data, k)
+
+
+def runNearestNeighbours(training_data, testing_data1, testing_data2, extractor):
+    numCorrect = 0.0
+    totalNum = 0.0
+    pixelList = [pixels for pixels, emotion in testing_data1]
+    for x in range(len(pixelList)):
+        twoDArray = get2dImage(pixelList[x])
+        spoints = fancyFeatureExtractor(extractor, twoDArray)
+        assignment = nearestNeighbour(twoDArray, spoints, training_data, extractor)
+        totalNum += 1
+        if assignment == testing_data1[x][1]:
+            numCorrect +=1
+    print "accuracy: ", numCorrect/totalNum
+    return
 
 def nearestNeighbour(image1, features, training_data, extractor):
-    #print "starting nn-------------------------------------------"
     if features[1] is not None:
         minDistance = float("inf")
         bestEmotion= -1
         for pixels,emotion in training_data:
-            #print "emotion", emotion           
             row = []
             twoDArray = []
 
@@ -639,16 +633,11 @@ def nearestNeighbour(image1, features, training_data, extractor):
 
             match = cv2.BFMatcher(cv2.NORM_L1).match(spoints[1], features[1])
             distances = [m.distance for m in match]
-            # print "distances :-------------------------------"
-            # for d in distances:
-            #     print d
             d = sum(distances)
             if d < minDistance and len(distances) > 0:
                 minDistance = d
                 bestEmotion = emotion
-                #print "updating best emotion to: ", emotion, "min distance to: ",d
                 drawMatches(np.uint8(np.array(image1)), features[0], np.uint8(np.array(twoDArray)), spoints[0], match)
-        #print "min distance: ", minDistance
         return bestEmotion 
     else:
         return random.randrange(0,7)
@@ -850,7 +839,8 @@ def main():
     #testInputData(training_data, testing_data1, testing_data2)
 
     #runBaselinePredictor(training_data, testing_data1, testing_data2)
-    runSurf(training_data, testing_data1, testing_data2)
+    runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
+    #runNearestNeighbours(training_data, testing_data1, testing_data2, "surf")
 
 if __name__ == '__main__':
   main()
