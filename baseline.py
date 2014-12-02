@@ -1,12 +1,12 @@
 import numpy as np
-import cv2 as cv2
-import csv
-import sys
-import random
-import collections
-import matplotlib.pyplot as plt
-import scipy.spatial.distance
-import scipy.cluster.vq
+#import cv2 as cv2
+#import csv
+#import sys
+#import random
+#import collections
+#import matplotlib.pyplot as plt
+#import scipy.spatial.distance
+#import scipy.cluster.vq
 
 
 '''Set this to true to use a truncated version of the data of size smallDataSetSize'''
@@ -842,15 +842,56 @@ def testInputData(training_data, testing_data1, testing_data2):
     print "Pixels: ", testing_data2[-1][0]
 
 
+#Takes in the entire list of pixels for one image, returns a list of lists (each corresponds to pixels for one feature) 
+def featurizePixelList(pixelsOneImage):
+    features = {}
+    lenPixels = len(pixelsOneImage)
+    numCols = 48 #CHANGE THIS FOR ACTUAL DATA
+    eye1LM = 10 #eye1 (left eye) left margin (distance from left edge)
+    eyeSeparation = 10 #separation between two eyes
+    eye2LM = 8 #eye2 (right eye) left margin (distance from left edge)
+    eyesTY = 10 #y coordinate of the top of each eye
+    eyeH = 10 #height of each eye
+    eyeW = 10 #width of each eye
+    mouthTY = 33 #y coordinate of top of mouth
+    mouthH = 10 #height of mouth
+    mouthW = 20 #width of mouth
+    mouthLM = 15 #left margin of mouth (distance from left edge)
+    
+    for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
+        features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
+        features.update({"eye2_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(((i*numCols)+eye2LM),(i*numCols)+eye2LM+eyeW)})
+    
+    for j in range(mouthTY-1, mouthTY+mouthH-1): #rows of the face the mouth is located in
+        features.update({"mouth_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range((j*numCols) + mouthLM, (j*numCols)+mouthLM+mouthW)})
+    
+    return features 
+        
+    #for i in range(0, numCols/2) 
+    #    features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i,((i*numCols)+(numCols/2)))}) 
+    #    features.update({"eye2_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(((i*numCols)+(numCols/2)),(i*numCols)+numCols)})
+        
+    #features.update({"mouth_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range((lenPixels/2),(lenPixels-1))})
+    #return features #[eye1, eye2, mouth]
+
+    #eye1 = {} #{eye1_1: pixelValue, eye1_2: pixelValue, ...}
+    #eye2 = {} #{eye2_1: pixelValue, eye2_2: pixelValue, ...}
+    #pixelsOneImage[numCols*i:((i*numCols)+(numCols/2))]}) #eye1
+        #eye2.extend(pixelsOneImage[((i*numCols)+(numCols/2)):(i*numCols)+numCols]) #10-20, 30-40        
+        #eye1.extend(pixelsOneImage[numCols*i:((i*numCols)+(numCols/2))]) #10-20
+        #eye2.extend(pixelsOneImage[((i*numCols)+(numCols/2)):(i*numCols)+numCols]) #10-20, 30-40
+    #mouth = pixelsOneImage[(lenPixels/2):(lenPixels-1)] #{mouth_1: pixelValue, mouth_2: pixelValue, ...}
 
 
 def main():
     if len(sys.argv) < 2: raise Exception("no input file given")
     training_data, testing_data1, testing_data2 = parseData(sys.argv[1])
     #testInputData(training_data, testing_data1, testing_data2)
-
+    #training = [1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 2, 2, 2, 2,1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+    #training = [x for x in range(0, (48*48))]
+    #print featurizePixelList(training)
     #runBaselinePredictor(training_data, testing_data1, testing_data2)
-    runSurf(training_data, testing_data1, testing_data2)
+    #runSurf(training_data, testing_data1, testing_data2)
 
 if __name__ == '__main__':
   main()
