@@ -13,6 +13,19 @@ import numpy as np
 smallDataSet = True
 smallDataSetSize = 500 #number of data points in the smaller data set (for both the test and train data)
 
+
+'''
+Note: Entire Data set contains
+-Angry: 4953 data points
+-Disgust: 547 data points
+-Fear: 5121 data points
+-Happy: 8989 data points
+-Sad: 6077 data points
+-Surprised: 4002 data points
+-Neutral: 6198 data points
+
+Totaling to: 35,887 data points
+'''
 def parseData(file_name):
     '''
     Function Purpose: parse input data from a csv file
@@ -33,6 +46,7 @@ def parseData(file_name):
     testing_data1 = []
     testing_data2 = None
 
+    emotionCounter = [0]*7
 
     #using a smaller data set for testing
     if smallDataSet:
@@ -58,6 +72,8 @@ def parseData(file_name):
             #append data point
             if inputList != None: 
                 pixels = [int(val) for val in line[1].split(" ")]
+                emotion = int(line[0])
+                emotionCounter[emotion] += 1
                 inputList.append((pixels, int(line[0])))
 
 
@@ -74,8 +90,11 @@ def parseData(file_name):
             #append data point
             if inputList != None: 
                 pixels = [int(val) for val in line[1].split(" ")]
+                emotion = int(line[0])
+                emotionCounter[emotion] += 1
                 inputList.append((pixels, int(line[0])))
 
+    print "emotionCounter: ", emotionCounter
     return (training_data, testing_data1, testing_data2)
 
 
@@ -88,10 +107,13 @@ def evaluatePredictor(examples, predictor):
     of misclassiied examples.
     '''
     error = 0
+    i = 0
     for x, y in examples:
+        #if i % 25 == 0: print "actual: ", y, "; predicted: ", predictor(x)
+        i += 1
         if predictor(x) != y:
             error += 1
-    return 1.0 * error / len(examples)
+    return 1.0 * error / float(len(examples))
 
 def pixelIndexFeatureExtractor(x):
     '''
@@ -109,17 +131,28 @@ def pixelIndexFeatureExtractor(x):
     return featureVector
 
 
-def HingeLossGradient(w, y, phi):
-    '''
-    Given weights (w), y, and phi, the function computes and returns the
-    corresponding Hinge Loss Gradient. 
-    '''
-    check = dotProduct(w, phi) * y
-    if check > 1: return {}
-    else: 
-        phi_new = {}
-        increment(phi_new, -1 * y, phi)
-        return phi_new
+def getMaxBranchIndex(weightList, y, phi):
+    '''determines and returns the arg max over i of: 
+    {dotProduct(weightList[i], phi) - dotproduct(weightList[y], phi) + 1 * (indicator i equals not y)}'''
+
+    branchValues = []
+    true_weights = weightList[y]
+
+    for i in range(0, len(weightList)):
+        d = dotProduct(weightList[i], phi) - dotProduct(true_weights, phi)
+        if y != i: d += 1
+        branchValues.append(d)
+
+    maxValue = None
+    maxBranchIndex = None
+
+    for i in range(0, len(branchValues)):
+        if maxValue == None or branchValues[i] > maxValue:
+            maxValue = branchValues[i]
+            maxBranchIndex = i
+
+    return maxBranchIndex
+
 
 def learnPredictor(trainExamples, testExamples, featureExtractor):
     '''
@@ -135,8 +168,8 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
     '''
 
     #each category has its own set of weights
-    weightList = [{}]*6
-    #weights = {}  # feature => weight
+        # weights[0] = dictionary: key(feature) => value(weight)
+    weightList = [{}, {}, {}, {}, {}, {}, {}]
 
     def predictor(x):
         '''
@@ -145,24 +178,44 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
         '''
         maxScore = None
         bestCategory = None
-        for i in range(len(weights)):
-            score = dotProduct(weightList[i], featureExtractor(x))
-            if maxScore == None or score > maxScore: bestCategory = i
+        phi = featureExtractor(x)
+        for i in range(0, len(weightList)):
+            score = dotProduct(weightList[i], phi)
+            if maxScore == None or score > maxScore: 
+                bestCategory = i
+                maxScore = score
 
         return bestCategory
 
     eta = 1
-    numIters = 20
+    numIters = 30
     for i in range(numIters):
         eta = 1 / ((i + 1)**(1/2.0)) #step size dependent on the interation number
         for x, y in trainExamples:
             phi = featureExtractor(x)
-            HLG = HingeLossGradient(weights, y, phi)
-            increment(weights, -1*eta, HLG)
-        print evaluatePredictor(trainExamples, predictor)
-        print evaluatePredictor(testExamples, predictor)
 
-    return weights
+            dominantWeightIndex = getMaxBranchIndex(weightList, y, phi)
+            if dominantWeightIndex != y:
+                HLG = phi
+                incrementWeightList(weightList, y, eta, phi)
+                incrementWeightList(weightList,dominantWeightIndex,-1*eta, HLG)
+
+
+        print "--- iteration: ", i, " ----"
+        print "train error: ", evaluatePredictor(trainExamples, predictor)
+        print "test error: ", evaluatePredictor(testExamples, predictor)
+
+    return weightList
+
+def incrementWeightList(weightList, index, scale, d2):
+    # """
+    # Implements weightList[index] += scale * d2 for sparse vectors.
+    # @param weightList[index]: the feature vector which is mutated.
+    # @param float scale
+    # @param dict d2: a feature vector.
+    # """
+    for f, v in d2.items():
+        weightList[index][f] = weightList[index].get(f, 0) + v * scale
 
 def dotProduct(d1, d2):
     """
@@ -174,16 +227,6 @@ def dotProduct(d1, d2):
         return dotProduct(d2, d1)
     else:
         return sum(d1.get(f, 0) * v for f, v in d2.items())
-
-def increment(d1, scale, d2):
-    # """
-    # Implements d1 += scale * d2 for sparse vectors.
-    # @param dict d1: the feature vector which is mutated.
-    # @param float scale
-    # @param dict d2: a feature vector.
-    # """
-    for f, v in d2.items():
-        d1[f] = d1.get(f, 0) + v * scale
 
 
 
@@ -302,7 +345,9 @@ def kmeans(data, k, maxIterations):
     number of iterations is achieved.
 
     Arguments: 
-        -data, a list of centroids, k, max number of iterations
+        -data
+        -k
+        -max number of iterations
     Return Value:
         -cluster assignments (clusters[i] = cluster data[i] is assigned to)
         -final centroids
@@ -311,10 +356,17 @@ def kmeans(data, k, maxIterations):
 
     print "starting kmean clustering"
 
-    centroidsPrev = [[]] * k 
+    centroidsPrev = [] 
+    for i in range(0, k):
+        centroidsPrev.append([])
+
     nDataPoints = len(data)
-    clusters = [-1] *  nDataPoints
-    centroidsNew = [{}] * k
+    
+    clusters = []
+    for i in range(0, nDataPoints): clusters.append(-1)
+    centroidsNew = []
+    for i in range(0, k):
+        centroidsNew.append([])
 
     #initialize centroids to a random sample of size K from examples
     for i in range(k):
@@ -408,9 +460,16 @@ def detmineGroupMapping(clusterAssignments, data, k):
     #print "emotionCounter: ", emotionCounter
     #print "clusterPercentList: ", clusterPercentList
 
+ 
+    '''
+    ------------------------------------------
+    APPROACH 1: 
+    assign a cluster to the emotion that is most represented (based on count) in that cluster
+    -----
+    '''
+    '''kmeansClusterIndex_to_emotion = dict()
+    
 
-
-    '''code to assign a cluster to the emotion that is most represented (based on count) in that cluster
     kmeansClusterIndex_to_emotion = dict()
     for i in range(0,k):
         if len(clusterList[i].most_common(1)) == 0: kmeansClusterIndex_to_emotion[i] = None
@@ -420,12 +479,22 @@ def detmineGroupMapping(clusterAssignments, data, k):
     #print "kmeansClusterIndex --> emotion: ", kmeansClusterIndex_to_emotion
     return kmeansClusterIndex_to_emotion'''
 
+    '''
+    -----
+    END APPROACH 1
+    -----------------------------------------
+    '''
 
 
+    '''
+    -----------------------------------------
+    APPROACH 2: 
+    assign an emotion to the cluster containing the highest percent of the emotion's data points
+    -----
+    '''
     
-    '''code to assign an emotion to the cluster containing the highest percent of the emotion's data points'''
+    #determine assignment by assigning an emotion to the cluster containing the highest percent of the emotion's data points
     
-    '''#determine assignment by assigning an emotion to the cluster containing the highest percent of the emotion's data points'''
     kmeansClusterIndex_to_emotion = dict()
 
     #assign emotions to clusters in order of least prevelant emotion first
@@ -448,9 +517,14 @@ def detmineGroupMapping(clusterAssignments, data, k):
                 highestPercent = percentCounter[emotion]
         kmeansClusterIndex_to_emotion[bestCluster] = emotion
 
-    #print "kmeansClusterIndex--> emotion: ", kmeansClusterIndex_to_emotion
+    print "kmeansClusterIndex--> emotion: ", kmeansClusterIndex_to_emotion
     return kmeansClusterIndex_to_emotion
-    
+
+    '''
+    -----
+    END APPROACH 2
+    --------------------------------------------
+    '''
 
 
 def convertDataPointsToDictionaries(data):
@@ -485,20 +559,49 @@ def clusterData(data, centroids):
 
     return clusters
 
+def get2dImage(image):
+    row = []
+    twoDArray = []
+    for i in range(0, len(image)):
+        if i % 48 == 0 and i!= 0:
+            twoDArray.append(row)
+            row = []
+        row.append(image[i])
+    twoDArray.append(row)
+    return twoDArray
 
+#takes in the name of the extractor "sift", "surf", or "fast" and a 2-d pixel array
+#returns list of sift features in the form ([list of key points, array(list of descriptor lists)]
+def fancyFeatureExtractor(extractor, image):
+    drawImage = False
+    spoints = {}
+    if extractor == "sift":
+        sift = cv2.SIFT()
+        spoints = sift.detectAndCompute(np.uint8(np.array(image)), None)
 
-def runSurf(training_data, testing_data1, testing_data2):
+    elif extractor == "surf":
+        surf = cv2.SURF(0)   
+        spoints = surf.detectAndCompute(np.uint8(np.array(image)), None)
+    elif extractor == "fast":
+        image = np.array(twoDArray, dtype=np.uint8)
+        fast = cv2.FastFeatureDetector()
+        kp = fast.detect(image)
+        freak = cv2.DescriptorExtractor_create('SURF')
+        spoints = freak.compute(image,kp)
+
+    if drawImage:
+        img2 = cv2.drawKeypoints(np.uint8(np.array(image)),spoints[0],None,(255,0,0),4)
+        plt.imshow(img2),plt.show()
+
+    return spoints
+
+def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
     print "starting surf"
     
     #///////////////////// flags ///////////////////
-    extractor = "surf" #"surf" # or "sift" # use this flag to set the feature extractor
-    drawImage = True
     normalize = False
-    kmeanstype = None #"concat" # or "first" or "independant" # use this flag to determine how to handle features for kmeans
-    algorithm = "neighbours" # kmeans or "neighbours"
+    kmeanstype = "first" #"concat" # or "first" or "independant" # use this flag to determine how to handle features for kmeans
    #////////////////////////////////////////////////
-    numCorrect = 0.0
-    totalNum = 0.0
 
     pixelList = [pixels for pixels, emotion in testing_data1]
     
@@ -509,51 +612,9 @@ def runSurf(training_data, testing_data1, testing_data2):
         surfFeaturesList = [[]]*len(pixelList)
     #for x in range(1):
     for x in range(len(pixelList)):
-        row = []
-        twoDArray = []
-
-
-        for i in range(0, len(pixelList[x])):
-            if i % 48 == 0 and i!= 0:
-                twoDArray.append(row)
-                row = []
-            row.append(pixelList[x][i])
-        twoDArray.append(row)
-        
-        spoints = None
-        if extractor == "sift":
-            sift = cv2.SIFT()
-            spoints = sift.detectAndCompute(np.uint8(np.array(twoDArray)), None)
-        elif extractor == "surf":
-            surf = cv2.SURF(0)   
-            spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
-        elif extractor == "fast":
-            image = np.array(twoDArray, dtype=np.uint8)
-            fast = cv2.FastFeatureDetector()
-            kp = fast.detect(image)
-            freak = cv2.DescriptorExtractor_create('SURF')
-            spoints = freak.compute(image,kp)   
-
-
-        if drawImage:
-            img2 = cv2.drawKeypoints(np.uint8(np.array(twoDArray)),spoints[0],None,(255,0,0),4)
-            plt.imshow(img2),plt.show()
-        
-        if algorithm == "neighbours":
-            assignment = nearestNeighbour(twoDArray, spoints, training_data, extractor)
-            totalNum += 1
-            if assignment == testing_data1[x][1]:
-                #print "correct"
-                numCorrect +=1
-           # else: 
-               #print "incorrect"
-
-        # if normalize: # WHAT DOES THIS DO???????????
-        #     covar = np.cov(spoints[1], rowvar=0)
-        #     covar.shape()
-        #     invcovar = np.linalg.inv(covar.reshape((1,1)))
-        #     invcovar = np.linalg.inv(covar)
-        
+        twoDArray = get2dImage(pixelList[x])
+        spoints = fancyFeatureExtractor("sift", twoDArray)
+ 
         #only add 1st feature for simplicity with kmeans:
         if kmeanstype == "first":
             if spoints is not None and spoints[1] is not None:
@@ -576,17 +637,11 @@ def runSurf(training_data, testing_data1, testing_data2):
                         surfFeaturesList[x].append(i)
             # else: 
             #     surfFeaturesList[x] = [1]
-    
-
-    if algorithm == "neighbours":
-        print "accuracy: ", numCorrect/totalNum
-        return
 
     #normalize features list before kmeans
     if normalize:
         np.linalg.norm(surfFeaturesList)
         surfFeaturesList = scipy.cluster.vq.whiten(surfFeaturesList)
-        #print "after",surfFeaturesList[0]
 
     k = 7
     maxIter = 10
@@ -596,22 +651,34 @@ def runSurf(training_data, testing_data1, testing_data2):
     #clusters, centroids = kmeansFeatures(surfFeaturesList, k, maxIter)
     #evaluateClusters(clusters, training_data, k)
     
-    if algorithm == "kmeans":
-        clusters, centroids = kmeans(surfFeaturesList, k, maxIter)
 
-        if independant: 
-            clusters = getActualClusters(clusters, featureToImageMap, pixelList)
-    
-        evaluateClusters(clusters, training_data, k)
+    clusters, centroids = kmeans(surfFeaturesList, k, maxIter)
 
+    if independant: 
+        clusters = getActualClusters(clusters, featureToImageMap, pixelList)
+
+    evaluateClusters(clusters, training_data, k)
+
+
+def runNearestNeighbours(training_data, testing_data1, testing_data2, extractor):
+    numCorrect = 0.0
+    totalNum = 0.0
+    pixelList = [pixels for pixels, emotion in testing_data1]
+    for x in range(len(pixelList)):
+        twoDArray = get2dImage(pixelList[x])
+        spoints = fancyFeatureExtractor(extractor, twoDArray)
+        assignment = nearestNeighbour(twoDArray, spoints, training_data, extractor)
+        totalNum += 1
+        if assignment == testing_data1[x][1]:
+            numCorrect +=1
+    print "accuracy: ", numCorrect/totalNum
+    return
 
 def nearestNeighbour(image1, features, training_data, extractor):
-    #print "starting nn-------------------------------------------"
     if features[1] is not None:
         minDistance = float("inf")
         bestEmotion= -1
         for pixels,emotion in training_data:
-            #print "emotion", emotion           
             row = []
             twoDArray = []
 
@@ -639,16 +706,11 @@ def nearestNeighbour(image1, features, training_data, extractor):
 
             match = cv2.BFMatcher(cv2.NORM_L1).match(spoints[1], features[1])
             distances = [m.distance for m in match]
-            # print "distances :-------------------------------"
-            # for d in distances:
-            #     print d
             d = sum(distances)
             if d < minDistance and len(distances) > 0:
                 minDistance = d
                 bestEmotion = emotion
-                #print "updating best emotion to: ", emotion, "min distance to: ",d
                 drawMatches(np.uint8(np.array(image1)), features[0], np.uint8(np.array(twoDArray)), spoints[0], match)
-        #print "min distance: ", minDistance
         return bestEmotion 
     else:
         return random.randrange(0,7)
@@ -779,23 +841,16 @@ def drawMatches(img1, kp1, img2, kp2, matches):
 
 
 
-def runBaselinePredictor(training_data, testing_data1, testing_data2):
+def runSGD(training_data, testing_data):
     '''
-    This function holds code to either:
-    1. run stochastic gradient descent 
-    2. run kmeans
-
-    ** Note: if smallDataSet = true, the value of testing_data2 will be None **
-
+    This function holds code to run stochastic gradient descent
     '''
+    learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
 
-    #set which test data set you want to test the baseline predictor on
-    #note, all functions current set to use training_data for training
-    testData = testing_data1
-
-    '''stochastic gradient descent'''
-    #learnPredictor(training_data, testing_data1, testing_data2, pixelIndexFeatureExtractor)
-
+def runKmeans(training_data, testing_data):
+    '''
+    This function holds code to run kmeans clustering
+    '''
 
     '''some functions might want data points represented as dictionaries'''
     #dataAsDictionaries = convertDataPointsToDictionaries(training_data):
@@ -805,18 +860,18 @@ def runBaselinePredictor(training_data, testing_data1, testing_data2):
     (required for kmeans) '''
 
     trainingPixelList = [pixels for pixels, emotion in training_data]
-    testingPixelList = [pixels for pixels, emotion in testData]
+    testingPixelList = [pixels for pixels, emotion in testing_data]
     
     '''kmeans clustering'''
 
     k = 7
-    maxIter = 1
+    maxIter = 50
     clusters, centroids = kmeans(trainingPixelList, k, maxIter)
     evaluateClusters(clusters, training_data, k)
 
     '''use centroids to cluster test data'''
     clusters = clusterData(testingPixelList, centroids)
-    evaluateClusters(clusters, testData, k)
+    evaluateClusters(clusters, testing_data, k)
 
 
 def testInputData(training_data, testing_data1, testing_data2):
@@ -887,11 +942,18 @@ def main():
     if len(sys.argv) < 2: raise Exception("no input file given")
     training_data, testing_data1, testing_data2 = parseData(sys.argv[1])
     #testInputData(training_data, testing_data1, testing_data2)
-    #training = [1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 2, 2, 2, 2,1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
-    #training = [x for x in range(0, (48*48))]
-    #print featurizePixelList(training)
-    #runBaselinePredictor(training_data, testing_data1, testing_data2)
-    #runSurf(training_data, testing_data1, testing_data2)
+
+
+    '''** Note: if smallDataSet = true, the value of testing_data2 will be None **'''
+
+    testData = testing_data1
+
+    #runSGD(training_data, testData)
+
+    runKmeans(training_data, testData)
+    runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
+    #runNearestNeighbours(training_data, testing_data1, testing_data2, "surf")
+
 
 if __name__ == '__main__':
   main()
