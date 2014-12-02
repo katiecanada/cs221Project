@@ -5,6 +5,8 @@ import sys
 import random
 import collections
 import matplotlib.pyplot as plt
+import scipy.spatial.distance
+import scipy.cluster.vq
 
 
 '''Set this to true to use a truncated version of the data of size smallDataSetSize'''
@@ -247,9 +249,14 @@ def euclideanDist(point1, point2):
 
     nDimensions = len(point1)
     sqSum = 0
-    for i in range(nDimensions):
-        sqDifference = (point1[i] - point2[i])**(2.0)
-        sqSum += sqDifference
+    if point2 != []:
+        for i in range(nDimensions):
+            sqDifference = (point1[i] - point2[i])**(2.0)
+            sqSum += sqDifference
+    else:
+        for i in range(nDimensions):
+            sqDifference = (point1[i])**(2.0)
+            sqSum += sqDifference
     
     return sqSum**(1.0/2.0)
 
@@ -272,7 +279,7 @@ def returnAverage(pointList):
     average = [0] * nDimensions
 
     for point in pointList:
-        for i in range(0, nDimensions):
+        for i in range(0, len(point)):
             average[i] += 1.0/nPoints * point[i]
     return average
 
@@ -317,8 +324,14 @@ def notConverged(centroidsPrev, centroidsNew):
     ----
     '''
 
-
     count = len([centroid for centroid in centroidsNew if centroid not in centroidsPrev])
+    # count = 0
+    # for centroid in centroidsNew:
+    #     for point in centroid:
+    #         print point
+    #         if point not in centroidsPrev.any():
+    #             count+=1
+
     count += len([centroid for centroid in centroidsPrev if centroid not in centroidsNew])
 
     return count != 0
@@ -420,6 +433,7 @@ def detmineGroupMapping(clusterAssignments, data, k):
     emotionCounter = collections.Counter()
     clusterList = [] #list of length k, clusterList[0] = a counter of how many data points of each emotion type were clustered to group 0
     for i in xrange(0, k): clusterList.append(collections.Counter())
+    print len(clusterAssignments)
     for i in range(0, len(clusterAssignments)):
         clusterIndex = clusterAssignments[i]
         emotion = data[i][1]
@@ -438,7 +452,6 @@ def detmineGroupMapping(clusterAssignments, data, k):
     #print "clusterPercentList: ", clusterPercentList
 
  
-
     '''
     ------------------------------------------
     APPROACH 1: 
@@ -446,6 +459,9 @@ def detmineGroupMapping(clusterAssignments, data, k):
     -----
     '''
     '''kmeansClusterIndex_to_emotion = dict()
+    
+
+    kmeansClusterIndex_to_emotion = dict()
     for i in range(0,k):
         if len(clusterList[i].most_common(1)) == 0: kmeansClusterIndex_to_emotion[i] = None
         else: kmeansClusterIndex_to_emotion[i] = (clusterList[i].most_common(1))[0][0]
@@ -469,6 +485,7 @@ def detmineGroupMapping(clusterAssignments, data, k):
     '''
     
     #determine assignment by assigning an emotion to the cluster containing the highest percent of the emotion's data points
+    
     kmeansClusterIndex_to_emotion = dict()
 
     #assign emotions to clusters in order of least prevelant emotion first
@@ -534,39 +551,297 @@ def clusterData(data, centroids):
     return clusters
 
 
+
 def runSurf(training_data, testing_data1, testing_data2):
     print "starting surf"
-    pixelList = [pixels for pixels, emotion in training_data]
-
     
-    row = []
+    #///////////////////// flags ///////////////////
+    extractor = "surf" #"surf" # or "sift" # use this flag to set the feature extractor
+    drawImage = True
+    normalize = False
+    kmeanstype = None #"concat" # or "first" or "independant" # use this flag to determine how to handle features for kmeans
+    algorithm = "neighbours" # kmeans or "neighbours"
+   #////////////////////////////////////////////////
+    numCorrect = 0.0
+    totalNum = 0.0
+
+    pixelList = [pixels for pixels, emotion in testing_data1]
+    
+    featureToImageMap = []
+    
     surfFeaturesList = []
-    #for x in range(len(pixelList)):
-    for x in range(1): 
+    if kmeanstype == "concat":
+        surfFeaturesList = [[]]*len(pixelList)
+    #for x in range(1):
+    for x in range(len(pixelList)):
+        row = []
         twoDArray = []
+
+
         for i in range(0, len(pixelList[x])):
             if i % 48 == 0 and i!= 0:
                 twoDArray.append(row)
                 row = []
             row.append(pixelList[x][i])
         twoDArray.append(row)
-        print len(twoDArray)
-
-        #surf = cv2.SURF(400)   
-        sift = cv2.SIFT()
-        #spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
-        spoints = sift.detectAndCompute(np.uint8(np.array(twoDArray)), None)
         
-        img2 = cv2.drawKeypoints(np.uint8(np.array(twoDArray)),spoints[0],None,(255,0,0),4)
-        plt.imshow(img2),plt.show()
-        #print spoints[1]
-        surfFeaturesList.append(spoints)
+        spoints = None
+        if extractor == "sift":
+            sift = cv2.SIFT()
+            spoints = sift.detectAndCompute(np.uint8(np.array(twoDArray)), None)
+        elif extractor == "surf":
+            surf = cv2.SURF(0)   
+            spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
+        elif extractor == "fast":
+            image = np.array(twoDArray, dtype=np.uint8)
+            fast = cv2.FastFeatureDetector()
+            kp = fast.detect(image)
+            freak = cv2.DescriptorExtractor_create('SURF')
+            spoints = freak.compute(image,kp)   
+
+
+        if drawImage:
+            img2 = cv2.drawKeypoints(np.uint8(np.array(twoDArray)),spoints[0],None,(255,0,0),4)
+            plt.imshow(img2),plt.show()
+        
+        if algorithm == "neighbours":
+            assignment = nearestNeighbour(twoDArray, spoints, training_data, extractor)
+            totalNum += 1
+            if assignment == testing_data1[x][1]:
+                #print "correct"
+                numCorrect +=1
+           # else: 
+               #print "incorrect"
+
+        # if normalize: # WHAT DOES THIS DO???????????
+        #     covar = np.cov(spoints[1], rowvar=0)
+        #     covar.shape()
+        #     invcovar = np.linalg.inv(covar.reshape((1,1)))
+        #     invcovar = np.linalg.inv(covar)
+        
+        #only add 1st feature for simplicity with kmeans:
+        if kmeanstype == "first":
+            if spoints is not None and spoints[1] is not None:
+                surfFeaturesList.append(list(spoints[1][0]))
+            else:
+                surfFeaturesList.append([])
+
+        #add all features as independant points to kmeans:
+        if kmeanstype == "independant":
+            if spoints is not None and spoints[1] is not None:
+                for point in spoints[1]:
+                    surfFeaturesList.append(list(point))
+                    featureToImageMap.append(x) #specifys that this feature maps to this image
+
+        #add concatenate all features to a giant feature     
+        if kmeanstype == "concat":
+            if spoints is not None and spoints[1] is not None:
+                for point in spoints[1]:
+                    for i in point:
+                        surfFeaturesList[x].append(i)
+            # else: 
+            #     surfFeaturesList[x] = [1]
+    
+
+    if algorithm == "neighbours":
+        print "accuracy: ", numCorrect/totalNum
+        return
+
+    #normalize features list before kmeans
+    if normalize:
+        np.linalg.norm(surfFeaturesList)
+        surfFeaturesList = scipy.cluster.vq.whiten(surfFeaturesList)
+        #print "after",surfFeaturesList[0]
+
     k = 7
     maxIter = 10
     
+    #print cv2.BFMatcher().match(surfFeaturesList[0], surfFeaturesList[1])
     #clusters = cv2.kmeans(np.array(surfFeaturesList), k, (cv2.TERM_CRITERIA_MAX_ITER, 10, .1), 1, cv2.KMEANS_RANDOM_CENTERS)
-    #clusters = kmeans(surfFeaturesList, k, maxIter)
+    #clusters, centroids = kmeansFeatures(surfFeaturesList, k, maxIter)
     #evaluateClusters(clusters, training_data, k)
+    
+    if algorithm == "kmeans":
+        clusters, centroids = kmeans(surfFeaturesList, k, maxIter)
+
+        if independant: 
+            clusters = getActualClusters(clusters, featureToImageMap, pixelList)
+    
+        evaluateClusters(clusters, training_data, k)
+
+
+def nearestNeighbour(image1, features, training_data, extractor):
+    #print "starting nn-------------------------------------------"
+    if features[1] is not None:
+        minDistance = float("inf")
+        bestEmotion= -1
+        for pixels,emotion in training_data:
+            #print "emotion", emotion           
+            row = []
+            twoDArray = []
+
+            for i in range(0, len(pixels)):
+                if i % 48 == 0 and i!= 0:
+                    twoDArray.append(row)
+                    row = []
+                row.append(pixels[i])
+            twoDArray.append(row)
+
+            spoints = None
+            if extractor == "sift":
+                sift = cv2.SIFT()
+                spoints = sift.detectAndCompute(np.uint8(np.array(twoDArray)), None)
+            elif extractor == "surf":
+                surf = cv2.SURF(4000)   
+                spoints = surf.detectAndCompute(np.uint8(np.array(twoDArray)), None)
+            elif extractor == "fast":
+                image = np.array(twoDArray, dtype=np.uint8)
+                fast = cv2.FastFeatureDetector()
+                kp = fast.detect(image)
+                freak = cv2.DescriptorExtractor_create('SURF')
+                spoints = freak.compute(image,kp)   
+      
+
+            match = cv2.BFMatcher(cv2.NORM_L1).match(spoints[1], features[1])
+            distances = [m.distance for m in match]
+            # print "distances :-------------------------------"
+            # for d in distances:
+            #     print d
+            d = sum(distances)
+            if d < minDistance and len(distances) > 0:
+                minDistance = d
+                bestEmotion = emotion
+                #print "updating best emotion to: ", emotion, "min distance to: ",d
+                drawMatches(np.uint8(np.array(image1)), features[0], np.uint8(np.array(twoDArray)), spoints[0], match)
+        #print "min distance: ", minDistance
+        return bestEmotion 
+    else:
+        return random.randrange(0,7)
+
+def getActualClusters(clusters, featureToImageMap, pixelList):
+    '''
+    takes in a the cluster assignments for independant features,
+    determines which images those features correspond to, 
+    assigns the image to the cluster to which most of its features are assigned,
+    returns cluster list in the expected form of a dict declaring which cluster each image is assigned to
+    '''
+    actualClusters = [0] * len(pixelList)
+    prevImage = -1
+    imageAssignments = [] 
+    for i in range(len(clusters)):
+        image = featureToImageMap[i]
+        if image == prevImage:
+            imageAssignments.append(clusters[i])
+        else:
+            if prevImage != (-1):
+                if imageAssignments == []:
+                    actualClusters[prevImage] = random.randrange(0,7)
+                else:    
+#                 print imageAssignments
+#                 print max(set(imageAssignments), key=imageAssignments.count)
+                    actualClusters[prevImage] = max(set(imageAssignments), key=imageAssignments.count)
+            imageAssignments = []
+        prevImage = image
+    return actualClusters
+
+
+
+# def returnClosetCentroidFeatures(point, centroidsPrev):
+#     '''
+#     attempt to reqwrite the return closest centroid features to work with sift/surf features. currently does nothing/not used
+#     ----
+#     '''
+#     runningMin = None
+#     closetCentroidIndex = 0 #default to being the centroid at index 0
+#     nCentroids = len(centroidsPrev)
+#     for i in range(nCentroids):
+#         centroid = centroidsPrev[i]
+#         covar = np.cov(point, rowvar=0)
+#         invcovar = np.linalg.inv(covar)
+#        # distance = scipy.spatial.distance.mahalanobis(centroid, point, invcovar)
+#         distance = len(cv2.BFMatcher().match(np.array(centroid), np.array(point)))
+#         if (runningMin == None) or ((distance < runningMin)):
+#             runningMin = distance
+#             closetCentroidIndex = i
+
+#         if((distance == runningMin)): closetCentroidIndex = random.choice([closetCentroidIndex, i])
+#     return closetCentroidIndex
+
+
+### Found on stack overflow http://stackoverflow.com/questions/20259025/module-object-has-no-attribute-drawmatches-opencv-python
+# credit to rayryeng
+def drawMatches(img1, kp1, img2, kp2, matches):
+    """
+    My own implementation of cv2.drawMatches as OpenCV 2.4.9
+    does not have this function available but it's supported in
+    OpenCV 3.0.0
+
+    This function takes in two images with their associated 
+    keypoints, as well as a list of DMatch data structure (matches) 
+    that contains which keypoints matched in which images.
+
+    An image will be produced where a montage is shown with
+    the first image followed by the second image beside it.
+
+    Keypoints are delineated with circles, while lines are connected
+    between matching keypoints.
+
+    img1,img2 - Grayscale images
+    kp1,kp2 - Detected list of keypoints through any of the OpenCV keypoint 
+              detection algorithms
+    matches - A list of matches of corresponding keypoints through any
+              OpenCV keypoint matching algorithm
+    """
+
+
+    # Create a new output image that concatenates the two images together
+    # (a.k.a) a montage
+    rows1 = img1.shape[0]
+    cols1 = img1.shape[1]
+    rows2 = img2.shape[0]
+    cols2 = img2.shape[1]
+
+
+    out = np.zeros((max([rows1,rows2]),cols1+cols2,3), dtype='uint8')
+
+    # Place the first image to the left
+    out[:rows1,:cols1,:] = np.dstack([img1, img1, img1])
+
+    # Place the next image to the right of it
+    out[:rows2,cols1:cols1+cols2,:] = np.dstack([img2, img2, img2])
+
+    # For each pair of points we have between both images
+    # draw circles, then connect a line between them
+    for mat in matches:
+
+        # Get the matching keypoints for each of the images
+        img1_idx = mat.queryIdx
+        img2_idx = mat.trainIdx
+
+        if img1_idx < len(kp1) and img2_idx < len(kp2):
+
+            # x - columns
+            # y - rows
+            (x1,y1) = kp1[img1_idx].pt
+            (x2,y2) = kp2[img2_idx].pt
+
+            # Draw a small circle at both co-ordinates
+            # radius 4
+            # colour blue
+            # thickness = 1
+            cv2.circle(out, (int(x1),int(y1)), 4, (255, 0, 0), 1)   
+            cv2.circle(out, (int(x2)+cols1,int(y2)), 4, (255, 0, 0), 1)
+
+            # Draw a line in between the two points
+            # thickness = 1
+            # colour blue
+            cv2.line(out, (int(x1),int(y1)), (int(x2)+cols1,int(y2)), (255, 0, 0), 1)
+
+
+    # Show the image
+    plt.imshow(out),plt.show()
+
+
 
 
 def runSGD(training_data, testing_data):
@@ -593,7 +868,7 @@ def runKmeans(training_data, testing_data):
     '''kmeans clustering'''
 
     k = 7
-    maxIter = 30
+    maxIter = 1
     clusters, centroids = kmeans(trainingPixelList, k, maxIter)
     evaluateClusters(clusters, training_data, k)
 
