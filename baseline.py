@@ -568,7 +568,6 @@ def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
     if normalize:
         np.linalg.norm(surfFeaturesList)
         surfFeaturesList = scipy.cluster.vq.whiten(surfFeaturesList)
-        #print "after",surfFeaturesList[0]
 
     k = 7
     maxIter = 10
