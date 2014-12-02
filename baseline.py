@@ -1,12 +1,12 @@
 import numpy as np
-#import cv2 as cv2
-#import csv
-#import sys
-#import random
-#import collections
-#import matplotlib.pyplot as plt
-#import scipy.spatial.distance
-#import scipy.cluster.vq
+import cv2 as cv2
+import csv
+import sys
+import random
+import collections
+import matplotlib.pyplot as plt
+import scipy.spatial.distance
+import scipy.cluster.vq
 
 
 '''Set this to true to use a truncated version of the data of size smallDataSetSize'''
