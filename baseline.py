@@ -1,5 +1,5 @@
 import numpy as np
-import cv2 as cv2
+#import cv2 as cv2
 import csv
 import sys
 import random
@@ -951,7 +951,7 @@ def drawMatches(img1, kp1, img2, kp2, matches):
 
 
 
-def runSGD(training_data, testing_data):
+def runSGD(training_data, testing_data, featureExtractor):
     '''
     This function holds code to run stochastic gradient descent
     '''
@@ -1058,7 +1058,8 @@ def main():
 
     testData = testing_data1
 
-    runSGD(training_data, testData)
+    #runSGD(training_data, testData, pixelIndexFeatureExtractor)
+    runSGD(training_data, testData, featurizePixelList)
 
     #runKmeans(training_data, testData)
     #runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
