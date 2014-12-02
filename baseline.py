@@ -570,6 +570,13 @@ def get2dImage(image):
     twoDArray.append(row)
     return twoDArray
 
+
+def faceFeatureExtractor(image):
+    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    (x,y,w,h) = face_cascade.detectMultiScale(np.array(image), 1.3, 5)[0]
+    print x,y,w,h
+    
+
 #takes in the name of the extractor "sift", "surf", or "fast" and a 2-d pixel array
 #returns list of sift features in the form ([list of key points, array(list of descriptor lists)]
 def fancyFeatureExtractor(extractor, image):
@@ -614,7 +621,8 @@ def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
     for x in range(len(pixelList)):
         twoDArray = get2dImage(pixelList[x])
         spoints = fancyFeatureExtractor("sift", twoDArray)
- 
+        faceFeatureExtractor(twoDArray)
+
         #only add 1st feature for simplicity with kmeans:
         if kmeanstype == "first":
             if spoints is not None and spoints[1] is not None:
