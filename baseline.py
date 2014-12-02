@@ -345,7 +345,9 @@ def kmeans(data, k, maxIterations):
     number of iterations is achieved.
 
     Arguments: 
-        -data, a list of centroids, k, max number of iterations
+        -data
+        -k
+        -max number of iterations
     Return Value:
         -cluster assignments (clusters[i] = cluster data[i] is assigned to)
         -final centroids
@@ -354,10 +356,17 @@ def kmeans(data, k, maxIterations):
 
     print "starting kmean clustering"
 
-    centroidsPrev = [[]] * k 
+    centroidsPrev = [] 
+    for i in range(0, k):
+        centroidsPrev.append([])
+
     nDataPoints = len(data)
-    clusters = [-1] *  nDataPoints
-    centroidsNew = [{}] * k
+    
+    clusters = []
+    for i in range(0, nDataPoints): clusters.append(-1)
+    centroidsNew = []
+    for i in range(0, k):
+        centroidsNew.append([])
 
     #initialize centroids to a random sample of size K from examples
     for i in range(k):
@@ -863,18 +872,18 @@ def runKmeans(training_data, testing_data):
     (required for kmeans) '''
 
     trainingPixelList = [pixels for pixels, emotion in training_data]
-    testingPixelList = [pixels for pixels, emotion in testData]
+    testingPixelList = [pixels for pixels, emotion in testing_data]
     
     '''kmeans clustering'''
 
     k = 7
-    maxIter = 1
+    maxIter = 50
     clusters, centroids = kmeans(trainingPixelList, k, maxIter)
     evaluateClusters(clusters, training_data, k)
 
     '''use centroids to cluster test data'''
     clusters = clusterData(testingPixelList, centroids)
-    evaluateClusters(clusters, testData, k)
+    evaluateClusters(clusters, testing_data, k)
 
 
 def testInputData(training_data, testing_data1, testing_data2):
@@ -911,9 +920,9 @@ def main():
 
     testData = testing_data1
 
-    runSGD(training_data, testData)
+    #runSGD(training_data, testData)
 
-    #runKmeans(training_data, testData)
+    runKmeans(training_data, testData)
     #runSurf(training_data, testing_data1, testing_data2)
 
 if __name__ == '__main__':
