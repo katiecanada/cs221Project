@@ -1,5 +1,5 @@
 import numpy as np
-import cv2 as cv2
+#import cv2 as cv2
 import csv
 import sys
 import random
@@ -11,6 +11,19 @@ import matplotlib.pyplot as plt
 smallDataSet = True
 smallDataSetSize = 500 #number of data points in the smaller data set (for both the test and train data)
 
+
+'''
+Note: Entire Data set contains
+-Angry: 4953 data points
+-Disgust: 547 data points
+-Fear: 5121 data points
+-Happy: 8989 data points
+-Sad: 6077 data points
+-Surprised: 4002 data points
+-Neutral: 6198 data points
+
+Totaling to: 35,887 data points
+'''
 def parseData(file_name):
     '''
     Function Purpose: parse input data from a csv file
@@ -31,6 +44,7 @@ def parseData(file_name):
     testing_data1 = []
     testing_data2 = None
 
+    emotionCounter = [0]*7
 
     #using a smaller data set for testing
     if smallDataSet:
@@ -56,6 +70,8 @@ def parseData(file_name):
             #append data point
             if inputList != None: 
                 pixels = [int(val) for val in line[1].split(" ")]
+                emotion = int(line[0])
+                emotionCounter[emotion] += 1
                 inputList.append((pixels, int(line[0])))
 
 
@@ -72,8 +88,11 @@ def parseData(file_name):
             #append data point
             if inputList != None: 
                 pixels = [int(val) for val in line[1].split(" ")]
+                emotion = int(line[0])
+                emotionCounter[emotion] += 1
                 inputList.append((pixels, int(line[0])))
 
+    print "emotionCounter: ", emotionCounter
     return (training_data, testing_data1, testing_data2)
 
 
@@ -86,10 +105,13 @@ def evaluatePredictor(examples, predictor):
     of misclassiied examples.
     '''
     error = 0
+    i = 0
     for x, y in examples:
+        #if i % 25 == 0: print "actual: ", y, "; predicted: ", predictor(x)
+        i += 1
         if predictor(x) != y:
             error += 1
-    return 1.0 * error / len(examples)
+    return 1.0 * error / float(len(examples))
 
 def pixelIndexFeatureExtractor(x):
     '''
@@ -107,17 +129,28 @@ def pixelIndexFeatureExtractor(x):
     return featureVector
 
 
-def HingeLossGradient(w, y, phi):
-    '''
-    Given weights (w), y, and phi, the function computes and returns the
-    corresponding Hinge Loss Gradient. 
-    '''
-    check = dotProduct(w, phi) * y
-    if check > 1: return {}
-    else: 
-        phi_new = {}
-        increment(phi_new, -1 * y, phi)
-        return phi_new
+def getMaxBranchIndex(weightList, y, phi):
+    '''determines and returns the arg max over i of: 
+    {dotProduct(weightList[i], phi) - dotproduct(weightList[y], phi) + 1 * (indicator i equals not y)}'''
+
+    branchValues = []
+    true_weights = weightList[y]
+
+    for i in range(0, len(weightList)):
+        d = dotProduct(weightList[i], phi) - dotProduct(true_weights, phi)
+        if y != i: d += 1
+        branchValues.append(d)
+
+    maxValue = None
+    maxBranchIndex = None
+
+    for i in range(0, len(branchValues)):
+        if maxValue == None or branchValues[i] > maxValue:
+            maxValue = branchValues[i]
+            maxBranchIndex = i
+
+    return maxBranchIndex
+
 
 def learnPredictor(trainExamples, testExamples, featureExtractor):
     '''
@@ -133,8 +166,8 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
     '''
 
     #each category has its own set of weights
-    weightList = [{}]*6
-    #weights = {}  # feature => weight
+        # weights[0] = dictionary: key(feature) => value(weight)
+    weightList = [{}, {}, {}, {}, {}, {}, {}]
 
     def predictor(x):
         '''
@@ -143,24 +176,44 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
         '''
         maxScore = None
         bestCategory = None
-        for i in range(len(weights)):
-            score = dotProduct(weightList[i], featureExtractor(x))
-            if maxScore == None or score > maxScore: bestCategory = i
+        phi = featureExtractor(x)
+        for i in range(0, len(weightList)):
+            score = dotProduct(weightList[i], phi)
+            if maxScore == None or score > maxScore: 
+                bestCategory = i
+                maxScore = score
 
         return bestCategory
 
     eta = 1
-    numIters = 20
+    numIters = 30
     for i in range(numIters):
         eta = 1 / ((i + 1)**(1/2.0)) #step size dependent on the interation number
         for x, y in trainExamples:
             phi = featureExtractor(x)
-            HLG = HingeLossGradient(weights, y, phi)
-            increment(weights, -1*eta, HLG)
-        print evaluatePredictor(trainExamples, predictor)
-        print evaluatePredictor(testExamples, predictor)
 
-    return weights
+            dominantWeightIndex = getMaxBranchIndex(weightList, y, phi)
+            if dominantWeightIndex != y:
+                HLG = phi
+                incrementWeightList(weightList, y, eta, phi)
+                incrementWeightList(weightList,dominantWeightIndex,-1*eta, HLG)
+
+
+        print "--- iteration: ", i, " ----"
+        print "train error: ", evaluatePredictor(trainExamples, predictor)
+        print "test error: ", evaluatePredictor(testExamples, predictor)
+
+    return weightList
+
+def incrementWeightList(weightList, index, scale, d2):
+    # """
+    # Implements weightList[index] += scale * d2 for sparse vectors.
+    # @param weightList[index]: the feature vector which is mutated.
+    # @param float scale
+    # @param dict d2: a feature vector.
+    # """
+    for f, v in d2.items():
+        weightList[index][f] = weightList[index].get(f, 0) + v * scale
 
 def dotProduct(d1, d2):
     """
@@ -172,16 +225,6 @@ def dotProduct(d1, d2):
         return dotProduct(d2, d1)
     else:
         return sum(d1.get(f, 0) * v for f, v in d2.items())
-
-def increment(d1, scale, d2):
-    # """
-    # Implements d1 += scale * d2 for sparse vectors.
-    # @param dict d1: the feature vector which is mutated.
-    # @param float scale
-    # @param dict d2: a feature vector.
-    # """
-    for f, v in d2.items():
-        d1[f] = d1.get(f, 0) + v * scale
 
 
 
@@ -394,24 +437,38 @@ def detmineGroupMapping(clusterAssignments, data, k):
     #print "emotionCounter: ", emotionCounter
     #print "clusterPercentList: ", clusterPercentList
 
+ 
 
-
-    '''code to assign a cluster to the emotion that is most represented (based on count) in that cluster'''
-    kmeansClusterIndex_to_emotion = dict()
+    '''
+    ------------------------------------------
+    APPROACH 1: 
+    assign a cluster to the emotion that is most represented (based on count) in that cluster
+    -----
+    '''
+    '''kmeansClusterIndex_to_emotion = dict()
     for i in range(0,k):
         if len(clusterList[i].most_common(1)) == 0: kmeansClusterIndex_to_emotion[i] = None
         else: kmeansClusterIndex_to_emotion[i] = (clusterList[i].most_common(1))[0][0]
         #kmeansClusterIndex_to_emotion[clusterIndex] --> emotion
 
     #print "kmeansClusterIndex --> emotion: ", kmeansClusterIndex_to_emotion
-    return kmeansClusterIndex_to_emotion
+    return kmeansClusterIndex_to_emotion'''
+
+    '''
+    -----
+    END APPROACH 1
+    -----------------------------------------
+    '''
 
 
-
+    '''
+    -----------------------------------------
+    APPROACH 2: 
+    assign an emotion to the cluster containing the highest percent of the emotion's data points
+    -----
+    '''
     
-    '''code to assign an emotion to the cluster containing the highest percent of the emotion's data points'''
-    
-    '''#determine assignment by assigning an emotion to the cluster containing the highest percent of the emotion's data points
+    #determine assignment by assigning an emotion to the cluster containing the highest percent of the emotion's data points
     kmeansClusterIndex_to_emotion = dict()
 
     #assign emotions to clusters in order of least prevelant emotion first
@@ -434,9 +491,14 @@ def detmineGroupMapping(clusterAssignments, data, k):
                 highestPercent = percentCounter[emotion]
         kmeansClusterIndex_to_emotion[bestCluster] = emotion
 
-    #print "kmeansClusterIndex--> emotion: ", kmeansClusterIndex_to_emotion
-    return kmeansClusterIndex_to_emotion'''
-    
+    print "kmeansClusterIndex--> emotion: ", kmeansClusterIndex_to_emotion
+    return kmeansClusterIndex_to_emotion
+
+    '''
+    -----
+    END APPROACH 2
+    --------------------------------------------
+    '''
 
 
 def convertDataPointsToDictionaries(data):
@@ -507,23 +569,16 @@ def runSurf(training_data, testing_data1, testing_data2):
     #evaluateClusters(clusters, training_data, k)
 
 
-def runBaselinePredictor(training_data, testing_data1, testing_data2):
+def runSGD(training_data, testing_data):
     '''
-    This function holds code to either:
-    1. run stochastic gradient descent 
-    2. run kmeans
-
-    ** Note: if smallDataSet = true, the value of testing_data2 will be None **
-
+    This function holds code to run stochastic gradient descent
     '''
+    learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
 
-    #set which test data set you want to test the baseline predictor on
-    #note, all functions current set to use training_data for training
-    testData = testing_data1
-
-    '''stochastic gradient descent'''
-    #learnPredictor(training_data, testing_data1, testing_data2, pixelIndexFeatureExtractor)
-
+def runKmeans(training_data, testing_data):
+    '''
+    This function holds code to run kmeans clustering
+    '''
 
     '''some functions might want data points represented as dictionaries'''
     #dataAsDictionaries = convertDataPointsToDictionaries(training_data):
@@ -577,8 +632,14 @@ def main():
     training_data, testing_data1, testing_data2 = parseData(sys.argv[1])
     #testInputData(training_data, testing_data1, testing_data2)
 
-    runBaselinePredictor(training_data, testing_data1, testing_data2)
-    runSurf(training_data, testing_data1, testing_data2)
+    '''** Note: if smallDataSet = true, the value of testing_data2 will be None **'''
+
+    testData = testing_data1
+
+    runSGD(training_data, testData)
+
+    #runKmeans(training_data, testData)
+    #runSurf(training_data, testing_data1, testing_data2)
 
 if __name__ == '__main__':
   main()
