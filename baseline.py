@@ -1101,8 +1101,8 @@ def runSGD(training_data, testing_data, featureExtractor):
     '''
     #learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
     #learnPredictor(training_data, testing_data, faceFeatureExtractor)
-    learnPredictor(training_data, testing_data, combinedExtractor)
-    #learnPredictor(training_data, testing_data, contoursFeatureExtractor)
+    #learnPredictor(training_data, testing_data, combinedExtractor)
+    learnPredictor(training_data, testing_data, contoursFeatureExtractor)
     #learnPredictor(training_data, testing_data, featureExtractor)
 
 def runKmeans(training_data, testing_data, kmeansType):
@@ -1218,28 +1218,17 @@ def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e
 
     features = {}
     lenPixels = len(pixelsOneImage)
-   # numCols = 48 #CHANGE THIS FOR ACTUAL DATA
-   # eye1LM = 10 #eye1 (left eye) left margin (distance from left edge)
-   # eyeSeparation = 10 #separation between two eyes
-   # eye2LM = 8 #eye2 (right eye) left margin (distance from left edge)
-   # eyesTY = 10 #y coordinate of the top of each eye
-   # eyeH = 10 #height of each eye
-   # eyeW = 10 #width of each eye
-   # mouthTY = 33 #y coordinate of top of mouth
-   # mouthH = 10 #height of mouth
-   # mouthW = 20 #width of mouth
-   # mouthLM = 15 #left margin of mouth (distance from left edge)
     numCols = 256#48 #CHANGE THIS FOR ACTUAL DATA
-    eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
+    #eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
     eyeSeparation = 37#10 #separation between two eyes
-    eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
-    eyesTY = 65#10 #y coordinate of the top of each eye
-    eyeH = 35#10 #height of each eye
-    eyeW = 30#10 #width of each eye
-    mouthTY = 195#33 #y coordinate of top of mouth
-    mouthH = 15#10 #height of mouth
-    mouthW = 40#20 #width of mouth
-    mouthLM = 100#15 #left margin of mouth (distance from left edge)
+    #eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
+    #eyesTY = 65#10 #y coordinate of the top of each eye
+    #eyeH = 35#10 #height of each eye
+    #eyeW = 30#10 #width of each eye
+    #mouthTY = 195#33 #y coordinate of top of mouth
+    #mouthH = 15#10 #height of mouth
+    #mouthW = 40#20 #width of mouth
+    #mouthLM = 100#15 #left margin of mouth (distance from left edge)
     
     for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
        # features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
@@ -1271,6 +1260,7 @@ def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e
 def contoursFeatureExtractor(image):
     features={}
     image = get2dImage(image)
+    print image
     image =  np.uint8(np.array(image))
     #imgray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     ret,thresh = cv2.threshold(image,127,255,0)
