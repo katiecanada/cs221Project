@@ -5,6 +5,7 @@ import sys
 import random
 import collections
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import scipy.spatial.distance
 import scipy.cluster.vq
 
@@ -108,11 +109,15 @@ def evaluatePredictor(examples, predictor):
     '''
     error = 0
     i = 0
-    for x, y in examples:
+    for j in range(0, len(examples)):
+        x,y = examples[j]
         #if i % 25 == 0: print "actual: ", y, "; predicted: ", predictor(x)
         i += 1
         if predictor(x) != y:
             error += 1
+            #print "error index", j
+        # else: 
+        #     print "correct index, ", j
     return 1.0 * error / float(len(examples))
 
 def pixelIndexFeatureExtractor(x):
@@ -638,51 +643,94 @@ def get2dImage(image):
 
 
 def faceFeatureExtractor(image):
+    image1d = image
     image = get2dImage(image)
     features = {}
     image =  np.uint8(np.array(image))
     face_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/haarcascade_frontalface_default.xml')
-    face = face_cascade.detectMultiScale(image)
+    face = face_cascade.detectMultiScale(image, minSize=(2, 2))
     facewidth = 48.0
     faceheight = 48.0
+    e1x=10 
+    e1y=10 
+    e1w=12
+    e1h=12
+    e2x=30
+    e2y=10
+    e2w=12
+    e2h=12
+    mx=15
+    my=33
+    mw=18 
+    mh=10
+
+
     if len(face) ==1 :
         f = face[0]
         #features["facex"] = f[0]
         #features["facey"] = f[1]
         #features["facew"] = f[2]
-        facewidth = f[2]
+        #facewidth = f[2]
         #features["faceh"] = f[3]
         faceheight = f[3]
-        # cv2.rectangle(image,(f[0],f[1]),(f[0]+f[2],f[1]+f[3]),(255,0,0),2)
-        # cv2.imshow('img',image)
+        # cv2.rectangle(image,(f[0],f[1]),(f[0]+f[2],f[1]+f[3]),(255,0,0),1)
+        #cv2.rectangle(image,(0,0,0,0),(255,0,0),2)
+        #img2 = cv2.drawKeypoints(np.uint8(np.array(image)),None,None,(255,0,0),4)
         
+        #plt.imshow(image),plt.show()
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
     eye_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/haarcascade_eye.xml')
-    eye = eye_cascade.detectMultiScale(image)
+    eye = eye_cascade.detectMultiScale(image, minSize=(0, 0))
     if len(eye)>=1:
         e = eye[0]
+        e1x = e[0]
+        e1y = e[1]
+        e1w = e[2]
+        e1h = e[3]
         #features["eye1x"] = e[0]
         #features["eye1y"] = e[1]
         # print "e1w", e[2]
         # print "e1h", e[3]
-        features["eye1w"] = e[2]/facewidth
+        #features["eye1w"] = e[2]/facewidth
         features["eye1h"] = e[3]/faceheight
+        # cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
     if len(eye)>=2:
         e = eye[1]
+        e2x = e[0]
+        e2y = e[1]
+        e2w = e[2]
+        e2h = e[3]        
         #features["eye2x"] = e[0]
         #features["eye2y"] = e[1]
-        features["eye2w"] = e[2]/facewidth
+        #features["eye2w"] = e[2]/facewidth
+        # cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
         features["eye2h"] = e[3]/faceheight
 
-    smile_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/haarcascade_smile.xml')
+    smile_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/mouth.xml')
     smile = smile_cascade.detectMultiScale(image)
     if len(smile)>=1:
         s = smile[0]
-        features["smilew"] = s[2]/facewidth
-        features["smileh"] = s[3]/faceheight        
+        mx = s[0]
+        my = s[1]
+        mw = s[2]
+        mh = s[3]
+        #features["smilew"] = s[2]/facewidth
+        # cv2.rectangle(image,(s[0],s[1]),(s[0]+s[2],s[1]+s[3]),(255,0,0),1)
+        features["smileh"] = s[3]/faceheight     
 
+    if len(eye) >=2 and len(smile) >=1:
+    # cv2.rectangle(image,(e1x,e1y),(e1x+e1w,e1y+e1h),(255,0,0),1)
+    # cv2.rectangle(image,(e2x,e2y),(e2x+e2w,e2y+e2h),(255,0,0),1)
+    # cv2.rectangle(image,(mx,my),(mx+mw,my+mh),(255,0,0),1)
+        contoursFeatureExtractor(image1d)
+
+        # cv2.rectangle(image,(15,33),(35,43),(255,0,0),1)
+    #plt.imshow(image,cmap = cm.Greys_r),plt.show()
+     #   fancyFeatureExtractor("fast", image)       
+
+    features.update(featurizePixelList(image1d, e1x, e1y, e1w, e1h, e2x, e2y, e2w, e2h, mx, my, mw, mh))
     return features
 
 
@@ -699,14 +747,14 @@ def fancyFeatureExtractor(extractor, image):
         surf = cv2.SURF(0)   
         spoints = surf.detectAndCompute(np.uint8(np.array(image)), None)
     elif extractor == "fast":
-        image = np.array(twoDArray, dtype=np.uint8)
+        image = np.array(image, dtype=np.uint8)
         fast = cv2.FastFeatureDetector()
         kp = fast.detect(image)
         freak = cv2.DescriptorExtractor_create('SURF')
         spoints = freak.compute(image,kp)
 
     if drawImage:
-        img2 = cv2.drawKeypoints(np.uint8(np.array(image)),spoints[0],None,(255,0,0),4)
+        img2 = cv2.drawKeypoints(np.uint8(np.array(image)),spoints[0],None,(0,153,255),4)
         plt.imshow(img2),plt.show()
 
     return spoints
@@ -724,7 +772,7 @@ def getPartitionedFeatures(spoints):
     mouth = None
 
     keypoints, featureVectors = spoints
-    for i in range(0, keypoints):
+    for i in range(0, len(keypoints)):
         keypoint = keypoints[i]
         center = keypoint.pt
         faceSection = map_point_to_section(center)
@@ -735,15 +783,15 @@ def getPartitionedFeatures(spoints):
     return eye1, eye2, mouth
 
 def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
-    print "starting surf"
+   # print "starting surf"
     
     #///////////////////// flags ///////////////////
     normalize = False
-    kmeanstype = "first" #"concat" # or "first" or "independant" # use this flag to determine how to handle features for kmeans
-    kmeanstype = "partitioned"
+    kmeanstype = "independant" #"concat" # or "first" or "independant" # use this flag to determine how to handle features for kmeans
+   # kmeanstype = "partitioned"
    #////////////////////////////////////////////////
 
-    data = training_data
+    data = testing_data1
     pixelList = [pixels for pixels, emotion in data]
     
     featureToImageMap = []
@@ -759,8 +807,7 @@ def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
     #for x in range(1):
     for x in range(len(pixelList)):
         twoDArray = get2dImage(pixelList[x])
-        spoints = fancyFeatureExtractor("sift", twoDArray)
-        faceFeatureExtractor(twoDArray)
+        spoints = fancyFeatureExtractor(extractor, twoDArray)
 
         #only add 1st feature for simplicity with kmeans:
         if kmeanstype == "first":
@@ -797,11 +844,9 @@ def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
         np.linalg.norm(surfFeaturesList)
         surfFeaturesList = scipy.cluster.vq.whiten(surfFeaturesList)
 
-    
-    if kmeanstype != "partitioned":
-        k = 7
-        maxIter = 10
-        
+    k = 7
+    maxIter = 10
+    if kmeanstype != "partitioned":        
         #print cv2.BFMatcher().match(surfFeaturesList[0], surfFeaturesList[1])
         #clusters = cv2.kmeans(np.array(surfFeaturesList), k, (cv2.TERM_CRITERIA_MAX_ITER, 10, .1), 1, cv2.KMEANS_RANDOM_CENTERS)
         #clusters, centroids = kmeansFeatures(surfFeaturesList, k, maxIter)
@@ -810,7 +855,7 @@ def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
 
         clusters, centroids = kmeans(surfFeaturesList, k, maxIter)
 
-        if independant: 
+        if "independant": 
             clusters = getActualClusters(clusters, featureToImageMap, pixelList)
 
         evaluateClusters(clusters, data, k)
@@ -826,13 +871,13 @@ def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
 def runNearestNeighbours(training_data, testing_data1, testing_data2, extractor):
     numCorrect = 0.0
     totalNum = 0.0
-    pixelList = [pixels for pixels, emotion in testing_data1]
+    pixelList = [pixels for pixels, emotion in training_data]
     for x in range(len(pixelList)):
         twoDArray = get2dImage(pixelList[x])
         spoints = fancyFeatureExtractor(extractor, twoDArray)
         assignment = nearestNeighbour(twoDArray, spoints, training_data, extractor)
         totalNum += 1
-        if assignment == testing_data1[x][1]:
+        if assignment == training_data[x][1]:
             numCorrect +=1
     print "accuracy: ", numCorrect/totalNum
     return
@@ -844,13 +889,7 @@ def nearestNeighbour(image1, features, training_data, extractor):
         for pixels,emotion in training_data:
             row = []
             twoDArray = []
-
-            for i in range(0, len(pixels)):
-                if i % 48 == 0 and i!= 0:
-                    twoDArray.append(row)
-                    row = []
-                row.append(pixels[i])
-            twoDArray.append(row)
+            twoDArray = get2dImage(pixels)
 
             spoints = None
             if extractor == "sift":
@@ -873,7 +912,7 @@ def nearestNeighbour(image1, features, training_data, extractor):
             if d < minDistance and len(distances) > 0:
                 minDistance = d
                 bestEmotion = emotion
-                drawMatches(np.uint8(np.array(image1)), features[0], np.uint8(np.array(twoDArray)), spoints[0], match)
+               # drawMatches(np.uint8(np.array(image1)), features[0], np.uint8(np.array(twoDArray)), spoints[0], match)
         return bestEmotion 
     else:
         return random.randrange(0,7)
@@ -1009,7 +1048,9 @@ def runSGD(training_data, testing_data):
     This function holds code to run stochastic gradient descent
     '''
     #learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
-    learnPredictor(training_data, testing_data, faceFeatureExtractor)
+    #learnPredictor(training_data, testing_data, faceFeatureExtractor)
+    learnPredictor(training_data, testing_data, combinedExtractor)
+    #learnPredictor(training_data, testing_data, contoursFeatureExtractor)
 
 def runKmeans(training_data, testing_data):
     '''
@@ -1060,29 +1101,48 @@ def testInputData(training_data, testing_data1, testing_data2):
     print "Emotion: ", testing_data2[-1][1]
     print "Pixels: ", testing_data2[-1][0]
 
+def combinedExtractor(x):
+    features = faceFeatureExtractor(x)
+    #features.update(featurizePixelList(x))
+    #print features
+    #features.update(contoursFeatureExtractor(x))
+    return features
 
 #Takes in the entire list of pixels for one image, returns a list of lists (each corresponds to pixels for one feature) 
-def featurizePixelList(pixelsOneImage):
+def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e2y=10, e2w=10, e2h=10, mx=15, my=33, mw=18, mh=10 ):
+    eye1LM = e1x
+    eyeSeparation = max(e2x-e1x+e1w, e1x-20)
+    eye2LM = e2x
+    eyesTY = e1y
+    eyeH = e1h
+    eyeW = e1w
+    mouthTY = my
+    mouthH = mh
+    mouthW = mw
+    mouthLM = mx
+
     features = {}
     lenPixels = len(pixelsOneImage)
     numCols = 48 #CHANGE THIS FOR ACTUAL DATA
-    eye1LM = 10 #eye1 (left eye) left margin (distance from left edge)
-    eyeSeparation = 10 #separation between two eyes
-    eye2LM = 8 #eye2 (right eye) left margin (distance from left edge)
-    eyesTY = 10 #y coordinate of the top of each eye
-    eyeH = 10 #height of each eye
-    eyeW = 10 #width of each eye
-    mouthTY = 33 #y coordinate of top of mouth
-    mouthH = 10 #height of mouth
-    mouthW = 20 #width of mouth
-    mouthLM = 15 #left margin of mouth (distance from left edge)
+   # eye1LM = 10 #eye1 (left eye) left margin (distance from left edge)
+   # eyeSeparation = 10 #separation between two eyes
+   # eye2LM = 8 #eye2 (right eye) left margin (distance from left edge)
+   # eyesTY = 10 #y coordinate of the top of each eye
+   # eyeH = 10 #height of each eye
+   # eyeW = 10 #width of each eye
+   # mouthTY = 33 #y coordinate of top of mouth
+   # mouthH = 10 #height of mouth
+   # mouthW = 20 #width of mouth
+   # mouthLM = 15 #left margin of mouth (distance from left edge)
     
     for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
-        features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
-        features.update({"eye2_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(((i*numCols)+eye2LM),(i*numCols)+eye2LM+eyeW)})
-    
+       # features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
+        features.update({str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
+       # features.update({"eye2_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(((i*numCols)+eye2LM),(i*numCols)+eye2LM+eyeW)})
+        features.update({str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(((i*numCols)+eye2LM),(i*numCols)+eye2LM+eyeW)})
     for j in range(mouthTY-1, mouthTY+mouthH-1): #rows of the face the mouth is located in
-        features.update({"mouth_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range((j*numCols) + mouthLM, (j*numCols)+mouthLM+mouthW)})
+       # features.update({"mouth_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range((j*numCols) + mouthLM, (j*numCols)+mouthLM+mouthW)})
+       features.update({str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range((j*numCols) + mouthLM, (j*numCols)+mouthLM+mouthW)})
     
     return features 
         
@@ -1102,6 +1162,50 @@ def featurizePixelList(pixelsOneImage):
     #mouth = pixelsOneImage[(lenPixels/2):(lenPixels-1)] #{mouth_1: pixelValue, mouth_2: pixelValue, ...}
 
 
+def contoursFeatureExtractor(image):
+    features={}
+    image = get2dImage(image)
+    image =  np.uint8(np.array(image))
+    #imgray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+    ret,thresh = cv2.threshold(image,127,255,0)
+    contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+    contours.sort(key=lambda x: cv2.contourArea(x), reverse = True)
+    cv2.drawContours(image,contours[0:3],-1,(0,255,0),1)
+    plt.imshow(image),plt.show()
+    features["numContours"] = len(contours)
+    if len(contours) >= 1:
+        features["c1area"] = cv2.contourArea(contours[0])
+        x,y,w,h = cv2.boundingRect(contours[0])
+        features["c1aspectratio"] = float(w)/h
+        area = cv2.contourArea(contours[0])
+        features["c1extent"] = float(area)/(w*h)
+        features["ed1"] = np.sqrt(4*area/np.pi)
+        # (x,y),(MA,ma),angle = cv2.fitEllipse(contours[0])
+        # features["orientation1"] = angle
+    if len(contours) >= 2:
+        features["c2area"] = cv2.contourArea(contours[1])
+        x,y,w,h = cv2.boundingRect(contours[1])
+        features["c2aspectratio"] = float(w)/h
+        area = cv2.contourArea(contours[1])
+        features["c2extent"] = float(area)/(w*h)
+        features["ed2"] = np.sqrt(4*area/np.pi)
+    
+    if len(contours) >= 3:
+        features["c3area"] = cv2.contourArea(contours[2])
+        x,y,w,h = cv2.boundingRect(contours[2])
+        features["c3aspectratio"] = float(w)/h
+        area = cv2.contourArea(contours[2])
+        features["c3extent"] = float(area)/(w*h)
+        features["ed3"] = np.sqrt(4*area/np.pi)
+    
+ 
+    # (x,y),(MA,ma),angle = cv2.fitEllipse(contours[1])
+    # features["orientation2"] = angle
+    # (x,y),(MA,ma),angle = cv2.fitEllipse(contours[2])
+    # features["orientation3"] = angle
+    #print contours[0]
+    return features
+
 def main():
     if len(sys.argv) < 2: raise Exception("no input file given")
     training_data, testing_data1, testing_data2 = parseData(sys.argv[1])
@@ -1113,10 +1217,9 @@ def main():
     testData = testing_data1
 
     runSGD(training_data, testData)
-
     #runKmeans(training_data, testData)
-    #runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
-    #runNearestNeighbours(training_data, testing_data1, testing_data2, "surf")
+    #runFancyKMeans(training_data, testing_data1, testing_data2, "fast")
+    #runNearestNeighbours(training_data, testing_data1, testing_data2, "sift")
 
 
 if __name__ == '__main__':
