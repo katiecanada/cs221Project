@@ -753,7 +753,7 @@ def faceFeatureExtractor(image):
         # print "e1h", e[3]
         #features["eye1w"] = e[2]/facewidth
         features["eye1h"] = e[3]/faceheight
-        # cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
+        cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
     if len(eye)>=2:
         e = eye[1]
         e2x = e[0]
@@ -763,7 +763,7 @@ def faceFeatureExtractor(image):
         #features["eye2x"] = e[0]
         #features["eye2y"] = e[1]
         #features["eye2w"] = e[2]/facewidth
-        # cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
+        cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
         features["eye2h"] = e[3]/faceheight
 
     smile_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/mouth.xml')
@@ -775,7 +775,7 @@ def faceFeatureExtractor(image):
         mw = s[2]
         mh = s[3]
         #features["smilew"] = s[2]/facewidth
-        # cv2.rectangle(image,(s[0],s[1]),(s[0]+s[2],s[1]+s[3]),(255,0,0),1)
+        cv2.rectangle(image,(s[0],s[1]),(s[0]+s[2],s[1]+s[3]),(255,0,0),1)
         features["smileh"] = s[3]/faceheight     
 
     # cv2.rectangle(image,(e1x,e1y),(e1x+e1w,e1y+e1h),(255,0,0),1)
@@ -784,7 +784,7 @@ def faceFeatureExtractor(image):
 
         # cv2.rectangle(image,(15,33),(35,43),(255,0,0),1)
     ret,thresh = cv2.threshold(image,127,255, cv2.THRESH_TOZERO_INV)
-    #plt.imshow(thresh,'gray'),plt.show()
+    plt.imshow(thresh,'gray'),plt.show()
 
      #   fancyFeatureExtractor("fast", image)       
 
@@ -1106,9 +1106,9 @@ def runSGD(training_data, testing_data, featureExtractor):
     This function holds code to run stochastic gradient descent
     '''
     #learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
-    #learnPredictor(training_data, testing_data, faceFeatureExtractor)
+    learnPredictor(training_data, testing_data, faceFeatureExtractor)
     #learnPredictor(training_data, testing_data, combinedExtractor)
-    learnPredictor(training_data, testing_data, contoursFeatureExtractor)
+    #learnPredictor(training_data, testing_data, contoursFeatureExtractor)
     #learnPredictor(training_data, testing_data, featureExtractor)
 
 def runKmeans(training_data, testing_data, kmeansType):
