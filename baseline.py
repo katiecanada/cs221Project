@@ -1329,7 +1329,12 @@ def main():
         source = "jaffe"
         #testInputData(training_data, testing_data, None)
 
-
+        numSamples = 213
+        numTrain=150
+        random.seed(3)
+        trainIndices = random.sample(range(numSamples), numTrain)
+        j_train_data = [all_data[index] for index in trainIndices]
+        j_test_data = [all_data[i] for i in range(numSamples) if i not in trainIndices]
 
 
 
