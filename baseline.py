@@ -1,5 +1,5 @@
 import numpy as np
-import cv2 as cv2
+#import cv2 as cv2
 import csv
 import sys
 import random
@@ -1102,8 +1102,8 @@ def runSGD(training_data, testing_data, featureExtractor):
     #learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
     #learnPredictor(training_data, testing_data, faceFeatureExtractor)
     #learnPredictor(training_data, testing_data, combinedExtractor)
-    learnPredictor(training_data, testing_data, contoursFeatureExtractor)
-    #learnPredictor(training_data, testing_data, featureExtractor)
+    #learnPredictor(training_data, testing_data, contoursFeatureExtractor)
+    learnPredictor(training_data, testing_data, featureExtractor)
 
 def runKmeans(training_data, testing_data, kmeansType):
     '''
@@ -1204,7 +1204,8 @@ def combinedExtractor(x):
     return features
 
 #Takes in the entire list of pixels for one image, returns a list of lists (each corresponds to pixels for one feature) 
-def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e2y=10, e2w=10, e2h=10, mx=15, my=33, mw=18, mh=10 ):
+#def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e2y=10, e2w=10, e2h=10, mx=15, my=33, mw=18, mh=10 ):
+def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, e2y=90, e2w=40, e2h=45, mx=100, my=175, mw=45, mh=20 ):
     eye1LM = e1x
     eyeSeparation = max(e2x-e1x+e1w, e1x-20)
     eye2LM = e2x
@@ -1219,7 +1220,7 @@ def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e
     features = {}
     lenPixels = len(pixelsOneImage)
     numCols = 256#48 #CHANGE THIS FOR ACTUAL DATA
-    eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
+    '''eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
     eyeSeparation = 40#10 #separation between two eyes
     eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
     eyesTY = 65#10 #y coordinate of the top of each eye
@@ -1228,7 +1229,7 @@ def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e
     mouthTY = 195#33 #y coordinate of top of mouth
     mouthH = 15#10 #height of mouth
     mouthW = 40#20 #width of mouth
-    mouthLM = 100#15 #left margin of mouth (distance from left edge)
+    mouthLM = 100#15 #left margin of mouth (distance from left edge)'''
     
     for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
        # features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
