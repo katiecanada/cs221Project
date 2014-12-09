@@ -161,19 +161,29 @@ def evaluatePredictor(examples, predictor):
     predictor: a function that takes an x and returns a predicted y.
     Given a list of examples (x, y), makes predictions based on |predict| and returns the fraction
     of misclassiied examples.
+
+    set emotion_evaluator to True to get a break down of which emotions are classified incorrectly
     '''
+
+    emotion_evaluator = True
+    #emotion_couter[emotion index] =[#wrongly classified, #images of this emotion]
+    emotion_counter = {0:[0,0], 1:[0,0], 2:[0,0], 3:[0,0], 4:[0,0], 5:[0,0], 6:[0,0]}
+
     error = 0
     i = 0
     for j in range(0, len(examples)):
         x,y = examples[j]
         #if i % 25 == 0: print "actual: ", y, "; predicted: ", predictor(x)
         i += 1
+        emotion_counter[y][1] += 1
         if predictor(x) != y:
             error += 1
+            emotion_counter[y][0] += 1
             #print "error index", j
         # else: 
         #     print "correct index, ", j
-    return 1.0 * error / float(len(examples))
+    for emotion in range (0,7): print emotion, " --> accuracy rate: ", 1 - float(emotion_counter[emotion][0])/float(emotion_counter[emotion][1])
+    print "overall accuracy: ", 1 - (1.0 * error / float(len(examples)))
 
 def pixelIndexFeatureExtractor(x):
     '''
@@ -261,9 +271,11 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
                 incrementWeightList(weightList,dominantWeightIndex,-1*eta, HLG)
 
 
-        print "--- iteration: ", i, " ----"
-        print "train error: ", evaluatePredictor(trainExamples, predictor)
-        print "test error: ", evaluatePredictor(testExamples, predictor)
+        print "------- iteration: ", i, " --------"
+        print "train accuracy" 
+        evaluatePredictor(trainExamples, predictor)
+        print "test accuracy: "
+        evaluatePredictor(testExamples, predictor)
 
     return weightList
 
@@ -1340,7 +1352,7 @@ def main():
 
 
     #runSGD(training_data, testing_data, pixelIndexFeatureExtractor)
-    #runSGD(training_data, testing_data, featurizePixelList)
+    runSGD(training_data, testing_data, featurizePixelList)
 
 
     '''---If running kmeans, set kmeans type below--'''
@@ -1350,7 +1362,7 @@ def main():
     #list of pixels for eye1, eye2, and mouth in a given image
     #kmeansType = "featurize pixel list"
 
-    runKmeans(training_data, testing_data, kmeansType)
+    #runKmeans(training_data, testing_data, kmeansType)
     '''----'''
     
     #runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
