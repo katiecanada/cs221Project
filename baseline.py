@@ -783,8 +783,8 @@ def faceFeatureExtractor(image):
     # cv2.rectangle(image,(mx,my),(mx+mw,my+mh),(255,0,0),1)
 
         # cv2.rectangle(image,(15,33),(35,43),(255,0,0),1)
-    ret,thresh = cv2.threshold(image,127,255, cv2.THRESH_TOZERO_INV)
-    plt.imshow(thresh,'gray'),plt.show()
+    #ret,thresh = cv2.threshold(image,127,255, cv2.THRESH_TOZERO_INV)
+#    plt.imshow(thresh,'gray'),plt.show()
 
      #   fancyFeatureExtractor("fast", image)       
 
@@ -1106,10 +1106,10 @@ def runSGD(training_data, testing_data, featureExtractor):
     This function holds code to run stochastic gradient descent
     '''
     #learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
-    learnPredictor(training_data, testing_data, faceFeatureExtractor)
+    #learnPredictor(training_data, testing_data, faceFeatureExtractor)
     #learnPredictor(training_data, testing_data, combinedExtractor)
     #learnPredictor(training_data, testing_data, contoursFeatureExtractor)
-    #learnPredictor(training_data, testing_data, featureExtractor)
+    learnPredictor(training_data, testing_data, featureExtractor)
 
 def runKmeans(training_data, testing_data, kmeansType):
     '''
@@ -1235,6 +1235,14 @@ def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e
     #mouthH = 15#10 #height of mouth
     #mouthW = 40#20 #width of mouth
     #mouthLM = 100#15 #left margin of mouth (distance from left edge)
+
+    image = get2dImage(pixelsOneImage)
+    image =  np.uint8(np.array(image))
+    cv2.rectangle(image,(eye1LM,eyeH),(eye1LM+eyeW,eyesTY+eyeH),(255,0,0),1)
+    cv2.rectangle(image,(eye2LM,eyeH),(eye2LM+eyeW,eyesTY+eyeH),(255,0,0),1)
+    cv2.rectangle(image,(mouthLM,mouthH),(mouthLM+mouthW,mouthTY+mouthH),(255,0,0),1)
+    plt.imshow(image,'gray'),plt.show()
+
     
     for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
        # features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
@@ -1268,7 +1276,6 @@ def contoursFeatureExtractor(image):
     image = get2dImage(image)
 
     image =  np.uint8(np.array(image))
-    image = (image)
     #imgray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY)
     contours, hierarchy = cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
