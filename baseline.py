@@ -18,7 +18,7 @@ smallKaggleDataSetSize = 500 #number of data points in the smaller data set (for
 #Note for jaffe: 0--> neutral, 1 --> happy, 2--> sad, 3--> surprised, 4 --> angry, 5 --> disgust, 6 --> fear
 '''Out of 213 images, set the size of the training set.'''
 #must be <= 213, note: jaffe_testing_set_size automatically set to (214 - training_set_size)
-jaffe_training_set_size = 125
+jaffe_training_set_size = 150
 
 '''
 Note: Entire Data set contains
@@ -1107,7 +1107,7 @@ def featurizePixelList(pixelsOneImage):
     lenPixels = len(pixelsOneImage)
     numCols = 256#48 #CHANGE THIS FOR ACTUAL DATA
     eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
-    eyeSeparation = 37#10 #separation between two eyes
+    eyeSeparation = 40#10 #separation between two eyes
     eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
     eyesTY = 65#10 #y coordinate of the top of each eye
     eyeH = 35#10 #height of each eye
