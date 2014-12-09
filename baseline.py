@@ -9,6 +9,7 @@ import matplotlib.cm as cm
 import scipy.spatial.distance
 import scipy.cluster.vq
 
+
 ##--------KAGGLE DATA PARAMETERS-------
 '''Set this to true to use a truncated version of the data of size smallKaggleDataSetSize'''
 smallKaggleDataSet = True
@@ -20,6 +21,8 @@ smallKaggleDataSetSize = 500 #number of data points in the smaller data set (for
 '''Out of 213 images, set the size of the training set.'''
 #must be <= 213, note: jaffe_testing_set_size automatically set to (214 - training_set_size)
 jaffe_training_set_size = 150
+
+source = "jaffe"
 
 '''
 Note: Entire Data set contains
@@ -685,8 +688,11 @@ def clusterData(data, centroids):
 def get2dImage(image):
     row = []
     twoDArray = []
+    d = 48
+    if source == "jaffe":
+        d = 256
     for i in range(0, len(image)):
-        if i % 48 == 0 and i!= 0:
+        if i % d == 0 and i!= 0:
             twoDArray.append(row)
             row = []
         row.append(image[i])
@@ -772,14 +778,14 @@ def faceFeatureExtractor(image):
         # cv2.rectangle(image,(s[0],s[1]),(s[0]+s[2],s[1]+s[3]),(255,0,0),1)
         features["smileh"] = s[3]/faceheight     
 
-    if len(eye) >=2 and len(smile) >=1:
     # cv2.rectangle(image,(e1x,e1y),(e1x+e1w,e1y+e1h),(255,0,0),1)
     # cv2.rectangle(image,(e2x,e2y),(e2x+e2w,e2y+e2h),(255,0,0),1)
     # cv2.rectangle(image,(mx,my),(mx+mw,my+mh),(255,0,0),1)
-        contoursFeatureExtractor(image1d)
 
         # cv2.rectangle(image,(15,33),(35,43),(255,0,0),1)
-    #plt.imshow(image,cmap = cm.Greys_r),plt.show()
+    ret,thresh = cv2.threshold(image,127,255, cv2.THRESH_TOZERO_INV)
+    #plt.imshow(thresh,'gray'),plt.show()
+
      #   fancyFeatureExtractor("fast", image)       
 
     features.update(featurizePixelList(image1d, e1x, e1y, e1w, e1h, e2x, e2y, e2w, e2h, mx, my, mw, mh))
@@ -1261,14 +1267,15 @@ def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, 
 def contoursFeatureExtractor(image):
     features={}
     image = get2dImage(image)
-    print image
+
     image =  np.uint8(np.array(image))
+    image = (image)
     #imgray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-    ret,thresh = cv2.threshold(image,127,255,0)
-    contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+    ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY)
+    contours, hierarchy = cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
     contours.sort(key=lambda x: cv2.contourArea(x), reverse = True)
-    cv2.drawContours(image,contours[0:3],-1,(0,255,0),1)
-    plt.imshow(image),plt.show()
+    cv2.drawContours(thresh,contours[0:10],-1,(0,255,0),1)
+    plt.imshow(thresh),plt.show()
     features["numContours"] = len(contours)
     if len(contours) >= 1:
         features["c1area"] = cv2.contourArea(contours[0])
@@ -1316,8 +1323,10 @@ def main():
         #testInputData(training_data, testing_data1, testing_data2)
         '''** Note: if smallKaggleDataSet = true, the value of testing_data2 will be None **'''
         testing_data = testing_data1
+        source = "kaggle"
     if data_type == 'jaffe':
         training_data, testing_data = parseJaffeData(sys.argv[1])
+        source = "jaffe"
         #testInputData(training_data, testing_data, None)
 
 
