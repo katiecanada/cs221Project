@@ -130,7 +130,7 @@ def parseJaffeData(file_name):
     training_data = [] #list of tuples (pixels, emotion category) where pixels is a list ints representing the 
                         #color value for each pixel and 'emotion category' is an int is in the range [0, 6]
     testing_data = []
-
+    all_data = []
     emotion_to_index = {"NE": 0, "HA": 1, "SA": 2, "SU": 3, "AN": 4, "DI": 5, "FE": 6}
 
     emotionCounter = [0]*7
@@ -147,10 +147,10 @@ def parseJaffeData(file_name):
 
         pixels = [int(x) for x in values[2:]]
         data_set.append((pixels, emotion))
-
+        all_data.append((pixels, emotion))
 
     print "emotionCounter: ", emotionCounter
-    return (training_data, testing_data)
+    return (training_data, testing_data, all_data)
 
 
 
@@ -1325,7 +1325,7 @@ def main():
         testing_data = testing_data1
         source = "kaggle"
     if data_type == 'jaffe':
-        training_data, testing_data = parseJaffeData(sys.argv[1])
+        training_data, testing_data, all_data = parseJaffeData(sys.argv[1])
         source = "jaffe"
         #testInputData(training_data, testing_data, None)
 
@@ -1340,17 +1340,17 @@ def main():
 
 
     #runSGD(training_data, testing_data, pixelIndexFeatureExtractor)
-    runSGD(training_data, testing_data, featurizePixelList)
+    #runSGD(training_data, testing_data, featurizePixelList)
 
 
     '''---If running kmeans, set kmeans type below--'''
     #list of all pixels in an image
-    #kmeansType = "pixel list"
+    kmeansType = "pixel list"
     
     #list of pixels for eye1, eye2, and mouth in a given image
-    kmeansType = "featurize pixel list"
+    #kmeansType = "featurize pixel list"
 
-    #runKmeans(training_data, testing_data, kmeansType)
+    runKmeans(training_data, testing_data, kmeansType)
     '''----'''
     
     #runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
