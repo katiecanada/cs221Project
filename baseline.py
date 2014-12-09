@@ -165,7 +165,7 @@ def evaluatePredictor(examples, predictor):
     set emotion_evaluator to True to get a break down of which emotions are classified incorrectly
     '''
 
-    emotion_evaluator = True
+    emotion_evaluator = False
     #emotion_couter[emotion index] =[#wrongly classified, #images of this emotion]
     emotion_counter = {0:[0,0], 1:[0,0], 2:[0,0], 3:[0,0], 4:[0,0], 5:[0,0], 6:[0,0]}
 
