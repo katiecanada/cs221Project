@@ -8,11 +8,17 @@ import matplotlib.pyplot as plt
 import scipy.spatial.distance
 import scipy.cluster.vq
 
+##--------KAGGLE DATA PARAMETERS-------
+'''Set this to true to use a truncated version of the data of size smallKaggleDataSetSize'''
+smallKaggleDataSet = True
+smallKaggleDataSetSize = 500 #number of data points in the smaller data set (for both the test and train data)
 
-'''Set this to true to use a truncated version of the data of size smallDataSetSize'''
-smallDataSet = True
-smallDataSetSize = 500 #number of data points in the smaller data set (for both the test and train data)
 
+##--------JAFFE DATA PARAMETERS--------
+#Note for jaffe: 0--> neutral, 1 --> happy, 2--> sad, 3--> surprised, 4 --> angry, 5 --> disgust, 6 --> fear
+'''Out of 213 images, set the size of the training set.'''
+#must be <= 213, note: jaffe_testing_set_size automatically set to (214 - training_set_size)
+jaffe_training_set_size = 125
 
 '''
 Note: Entire Data set contains
@@ -26,7 +32,8 @@ Note: Entire Data set contains
 
 Totaling to: 35,887 data points
 '''
-def parseData(file_name):
+
+def parseKaggleData(file_name):
     '''
     Function Purpose: parse input data from a csv file
 
@@ -40,6 +47,7 @@ def parseData(file_name):
 
     data = open(file_name, 'r')
     dataLines = csv.reader(data)
+    data.close()
     training_data = [] #list of tuples (pixels, emotion category) where pixels is a list ints representing the 
                         #color value for each pixel and 'emotion category' is an int is in the range [0, 6]
     
@@ -49,23 +57,23 @@ def parseData(file_name):
     emotionCounter = [0]*7
 
     #using a smaller data set for testing
-    if smallDataSet:
+    if smallKaggleDataSet:
         trainCounter = 0
         testCounter = 0
         for line in dataLines:
 
-            if trainCounter >= smallDataSetSize and testCounter >= smallDataSetSize: break
+            if trainCounter >= smallKaggleDataSetSize and testCounter >= smallKaggleDataSetSize: break
             
             inputList = None
             if line[2] == 'Training':
                 
-                if trainCounter >= smallDataSetSize: continue
+                if trainCounter >= smallKaggleDataSetSize: continue
                 inputList = training_data
                 trainCounter += 1
             
             elif line[2] == 'PublicTest' or line[2] == 'PrivateTest':
                 
-                if testCounter >= smallDataSetSize: continue
+                if testCounter >= smallKaggleDataSetSize: continue
                 inputList = testing_data1
                 testCounter +=1
 
@@ -96,6 +104,50 @@ def parseData(file_name):
 
     print "emotionCounter: ", emotionCounter
     return (training_data, testing_data1, testing_data2)
+
+
+def parseJaffeData(file_name):
+    '''
+    Function Purpose: parse input data from a .txt file
+
+    Return Value: 2-tuple: (training_data, testing_data)
+    - each element in training_data and testing_data is a 2-tuple: (pixels, emotion category)
+        - pixels: a list of pixel color values. The index of the color value represents the index of the pixel
+        - emotion category: the emotion given in the image. this is a value in the range [0,6]
+            -Note for jaffe: 
+            0--> neutral, 1 --> happy, 2--> sad, 3--> surprised, 4 --> angry, 5 --> disgust, 6 --> fear
+    
+
+    '''
+
+    data = open(file_name, 'r')
+    dataLines = lines = data.readlines()
+    data.close()
+    training_data = [] #list of tuples (pixels, emotion category) where pixels is a list ints representing the 
+                        #color value for each pixel and 'emotion category' is an int is in the range [0, 6]
+    testing_data = []
+
+    emotion_to_index = {"NE": 0, "HA": 1, "SA": 2, "SU": 3, "AN": 4, "DI": 5, "FE": 6}
+
+    emotionCounter = [0]*7
+
+    print "number of Jaffe Images: ", len(dataLines)
+    for i, line in list(enumerate(dataLines)):
+
+        data_set = training_data
+        if i >= jaffe_training_set_size: data_set = testing_data
+
+        values = line.split(',')
+        emotion = emotion_to_index[str(values[1])]
+        emotionCounter[emotion] += 1
+
+        pixels = [int(x) for x in values[2:]]
+        data_set.append((pixels, emotion))
+
+
+    print "emotionCounter: ", emotionCounter
+    return (training_data, testing_data)
+
 
 
 ''' ----- STOCHATIC GRADIENT DESCENT CODE -------'''
@@ -188,7 +240,7 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
         return bestCategory
 
     eta = 1
-    numIters = 30
+    numIters = 20
     for i in range(numIters):
         eta = 1 / ((i + 1)**(1/2.0)) #step size dependent on the interation number
         for x, y in trainExamples:
@@ -345,7 +397,7 @@ def kmeans(data, k, maxIterations):
     number of iterations is achieved.
 
     Arguments: 
-        -data
+        -data: list of data points (RBG values given in standardized order across all images)
         -k
         -max number of iterations
     Return Value:
@@ -955,9 +1007,9 @@ def runSGD(training_data, testing_data, featureExtractor):
     '''
     This function holds code to run stochastic gradient descent
     '''
-    learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
+    learnPredictor(training_data, testing_data, featureExtractor)
 
-def runKmeans(training_data, testing_data):
+def runKmeans(training_data, testing_data, kmeansType):
     '''
     This function holds code to run kmeans clustering
     '''
@@ -969,8 +1021,44 @@ def runKmeans(training_data, testing_data):
     '''Code to convert data from list of tuples (pixels, emotion) to just list of pixels 
     (required for kmeans) '''
 
-    trainingPixelList = [pixels for pixels, emotion in training_data]
-    testingPixelList = [pixels for pixels, emotion in testing_data]
+    trainingPixelList = None
+    testingPixelList = None
+
+    if kmeansType == "pixel list":
+        trainingPixelList = [pixels for pixels, emotion in training_data]
+        testingPixelList = [pixels for pixels, emotion in testing_data]
+
+    elif kmeansType == "featurize pixel list":
+        trainingPixelList = []
+        testingPixelList = []
+
+        #For each image, must create a list of the pixels corresonding only to the eye1, eye2, 
+            #and mouth sections of the image
+        #For each image, these pixels must be listed in a standardized order
+            #ex: image1 = [eye1_pixel1, eye1_pixel 2, ..., eye2_pixel1, eye2_pixel2..., mouth1, mouth2, ...]; 
+            #   image2 = [eye1_pixel1, eye1_pixel 2, ..., eye2_pixel1, eye2_pixel2..., mouth1, mouth2, ...]; 
+        
+        trainingPixelDicts = [featurizePixelList(pixels)for pixels, emotion in training_data]
+        
+        for pixelDict in trainingPixelDicts:
+            #enter pixel values into the pixel list in a standarized order
+            sortedKeys = sorted(pixelDict.keys())
+            pixelList = []
+            for i in range(0, len(sortedKeys)):
+                key = sortedKeys[i]
+                pixelList.append(pixelDict[key])
+            trainingPixelList.append(pixelList)
+
+        testingPixelDicts = [featurizePixelList(pixels)for pixels, emotion in testing_data]
+        
+        for pixelDict in testingPixelDicts:
+            #enter pixel values into the pixel list in a standarized order
+            sortedKeys = sorted(pixelDict.keys())
+            pixelList = []
+            for i in range(0, len(sortedKeys)):
+                key = sortedKeys[i]
+                pixelList.append(pixelDict[key])
+            testingPixelList.append(pixelList)
     
     '''kmeans clustering'''
 
@@ -987,15 +1075,21 @@ def runKmeans(training_data, testing_data):
 def testInputData(training_data, testing_data1, testing_data2):
     print "---- TRAINING DATA ----"
     print "# data points: ", len(training_data)
-    print "1st data point: "
+    print "----1st data point: ---"
     print "Emotion: ", training_data[0][1]
     print "Pixels: ", training_data[0][0]
+    print "----last data point: ----"
+    print "Emotion: ", training_data[-1][1]
+    print "Pixels: ", training_data[-1][0]
     print "---- TESTING DATA1 ----"
     print "# data points: ", len(testing_data1)
-    print "1st data point: "
+    print "-----1st data point: ----"
     print "Emotion: ", testing_data1[0][1]
     print "Pixels: ", testing_data1[0][0]
-    print "---- TESTING DATA2 ----"
+    print "----last data point: ----"
+    print "Emotion: ", testing_data1[-1][1]
+    print "Pixels: ", testing_data1[-1][0]
+    '''print "---- TESTING DATA2 ----"
     print "# data points: ", len(testing_data2)
     print "1st data point: "
     print "Emotion: ", testing_data2[0][1]
@@ -1004,24 +1098,24 @@ def testInputData(training_data, testing_data1, testing_data2):
     print "# data points: ", len(testing_data2)
     print "last data point: "
     print "Emotion: ", testing_data2[-1][1]
-    print "Pixels: ", testing_data2[-1][0]
+    print "Pixels: ", testing_data2[-1][0]'''
 
 
 #Takes in the entire list of pixels for one image, returns a list of lists (each corresponds to pixels for one feature) 
 def featurizePixelList(pixelsOneImage):
     features = {}
     lenPixels = len(pixelsOneImage)
-    numCols = 48 #CHANGE THIS FOR ACTUAL DATA
-    eye1LM = 10 #eye1 (left eye) left margin (distance from left edge)
-    eyeSeparation = 10 #separation between two eyes
-    eye2LM = 8 #eye2 (right eye) left margin (distance from left edge)
-    eyesTY = 10 #y coordinate of the top of each eye
-    eyeH = 10 #height of each eye
-    eyeW = 10 #width of each eye
-    mouthTY = 33 #y coordinate of top of mouth
-    mouthH = 10 #height of mouth
-    mouthW = 20 #width of mouth
-    mouthLM = 15 #left margin of mouth (distance from left edge)
+    numCols = 256#48 #CHANGE THIS FOR ACTUAL DATA
+    eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
+    eyeSeparation = 37#10 #separation between two eyes
+    eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
+    eyesTY = 65#10 #y coordinate of the top of each eye
+    eyeH = 35#10 #height of each eye
+    eyeW = 30#10 #width of each eye
+    mouthTY = 195#33 #y coordinate of top of mouth
+    mouthH = 15#10 #height of mouth
+    mouthW = 40#20 #width of mouth
+    mouthLM = 100#15 #left margin of mouth (distance from left edge)
     
     for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
         features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
@@ -1049,19 +1143,40 @@ def featurizePixelList(pixelsOneImage):
 
 
 def main():
-    if len(sys.argv) < 2: raise Exception("no input file given")
-    training_data, testing_data1, testing_data2 = parseData(sys.argv[1])
-    #testInputData(training_data, testing_data1, testing_data2)
+
+    if len(sys.argv) < 3: raise Exception("Not enough arguments given. EXPECTED FORMAT: python baseline.py <input file name> <data type (either \"kaggle\" or \"jaffe\")>")
+    
+    testing_data = None
+    training_data = None
+
+    data_type = str(sys.argv[2])
+    if data_type == 'kaggle':
+        training_data, testing_data1, testing_data2 = parseKaggleData(sys.argv[1])
+        #testInputData(training_data, testing_data1, testing_data2)
+        '''** Note: if smallKaggleDataSet = true, the value of testing_data2 will be None **'''
+        testing_data = testing_data1
+    if data_type == 'jaffe':
+        training_data, testing_data = parseJaffeData(sys.argv[1])
+        #testInputData(training_data, testing_data, None)
 
 
-    '''** Note: if smallDataSet = true, the value of testing_data2 will be None **'''
 
-    testData = testing_data1
 
-    #runSGD(training_data, testData, pixelIndexFeatureExtractor)
-    runSGD(training_data, testData, featurizePixelList)
 
-    #runKmeans(training_data, testData)
+    #runSGD(training_data, testing_data, pixelIndexFeatureExtractor)
+    runSGD(training_data, testing_data, featurizePixelList)
+
+
+    '''---If running kmeans, set kmeans type below--'''
+    #list of all pixels in an image
+    #kmeansType = "pixel list"
+    
+    #list of pixels for eye1, eye2, and mouth in a given image
+    kmeansType = "featurize pixel list"
+
+    #runKmeans(training_data, testing_data, kmeansType)
+    '''----'''
+    
     #runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
     #runNearestNeighbours(training_data, testing_data1, testing_data2, "surf")
 
