@@ -11,31 +11,25 @@ import scipy.cluster.vq
 
 
 ##--------KAGGLE DATA PARAMETERS-------
-'''Set this to true to use a truncated version of the data of size smallKaggleDataSetSize'''
+#emotion key: (0 = Angry, 1 = Disgust, 2 = Fear, 3 = Happy, 4 = Sad, 5 = Surprise, 6 = Neutral)
+
+#Set this to true to use a truncated version of the data of size smallKaggleDataSetSize'
 smallKaggleDataSet = True
 smallKaggleDataSetSize = 500 #number of data points in the smaller data set (for both the test and train data)
-
+##-------------------------------------
 
 ##--------JAFFE DATA PARAMETERS--------
-#Note for jaffe: 0--> neutral, 1 --> happy, 2--> sad, 3--> surprised, 4 --> angry, 5 --> disgust, 6 --> fear
-'''Out of 213 images, set the size of the training set.'''
-#must be <= 213, note: jaffe_testing_set_size automatically set to (214 - training_set_size)
-jaffe_training_set_size = 150
+#emotion key: (0 = Neutral, 1 = Happy, 2 = Sad, 3 = Surprised, 4 = Angry, 5 = Disgust, 6 = Fear)
 
+#Out of 213 images, set the size of the training set (must be <= 213 and note: jaffe_testing_set_size automatically set to (214 - training_set_size))
+jaffe_training_set_size = 150
+#set the training data to be randomized or not
+randomize_jaffe_data = True
+##-------------------------------------
+
+#set by program arguments, <source> signifies which data set we are using
 source = "jaffe"
 
-'''
-Note: Entire Data set contains
--Angry: 4953 data points
--Disgust: 547 data points
--Fear: 5121 data points
--Happy: 8989 data points
--Sad: 6077 data points
--Surprised: 4002 data points
--Neutral: 6198 data points
-
-Totaling to: 35,887 data points
-'''
 
 def parseKaggleData(file_name):
     '''
@@ -47,6 +41,18 @@ def parseKaggleData(file_name):
         - emotion category: the emotion given in the image. this is a value in the range [0,6]
     
 
+    Note: Entire Data set contains
+    -Angry: 4953 data points
+    -Disgust: 547 data points
+    -Fear: 5121 data points
+    -Happy: 8989 data points
+    -Sad: 6077 data points
+    -Surprised: 4002 data points
+    -Neutral: 6198 data points
+
+    Totaling to: 35,887 data points
+
+    (0 = Angry, 1 = Disgust, 2 = Fear, 3 = Happy, 4 = Sad, 5 = Surprise, 6 = Neutral)
     '''
 
     data = open(file_name, 'r')
@@ -119,9 +125,18 @@ def parseJaffeData(file_name):
         - pixels: a list of pixel color values. The index of the color value represents the index of the pixel
         - emotion category: the emotion given in the image. this is a value in the range [0,6]
             -Note for jaffe: 
-            0--> neutral, 1 --> happy, 2--> sad, 3--> surprised, 4 --> angry, 5 --> disgust, 6 --> fear
+            (0 = neutral, 1 = happy, 2 = sad, 3 = surprised, 4 = angry, 5 = disgust, 6 = fear)
     
+    Note: Entire Data set contains
+    -Neutral: 30 data points
+    -Happy: 31 data points
+    -Sad: 31 data points
+    -Surprised: 30 data points
+    -Angry: 30 data points
+    -Disgust: 29 data points
+    -Fear: 32 data points
 
+    Totaling to: 213 data points
     '''
 
     data = open(file_name, 'r')
@@ -154,7 +169,7 @@ def parseJaffeData(file_name):
 
 
 
-''' ----- STOCHATIC GRADIENT DESCENT CODE -------'''
+''' ---------------------- STOCHATIC GRADIENT DESCENT CODE ---------------------- '''
 
 def evaluatePredictor(examples, predictor):
     '''
@@ -165,29 +180,29 @@ def evaluatePredictor(examples, predictor):
     set emotion_evaluator to True to get a break down of which emotions are classified incorrectly
     '''
 
+    #set to true if want the function to evaluate accuracy based on emotion
     emotion_evaluator = False
-    #emotion_couter[emotion index] =[#wrongly classified, #images of this emotion]
+    ## emotion_couter[emotion index] =[#wrongly classified, #images of this emotion]
     emotion_counter = {0:[0,0], 1:[0,0], 2:[0,0], 3:[0,0], 4:[0,0], 5:[0,0], 6:[0,0]}
 
     error = 0
     i = 0
     for j in range(0, len(examples)):
         x,y = examples[j]
-        #if i % 25 == 0: print "actual: ", y, "; predicted: ", predictor(x)
         i += 1
         emotion_counter[y][1] += 1
         if predictor(x) != y:
             error += 1
             emotion_counter[y][0] += 1
-            #print "error index", j
-        # else: 
-        #     print "correct index, ", j
-    for emotion in range (0,7): print emotion, " --> accuracy rate: ", 1 - float(emotion_counter[emotion][0])/float(emotion_counter[emotion][1])
-    print "overall accuracy: ", 1 - (1.0 * error / float(len(examples)))
+
+    if emotion_evaluator: 
+        for emotion in range (0,7): print emotion, " --> accuracy rate: ", 1 - float(emotion_counter[emotion][0])/float(emotion_counter[emotion][1])
+        print "overall accuracy: ", 1 - (1.0 * error / float(len(examples)))
+    else: print "accuracy: ", 1 - (1.0 * error / float(len(examples)))
 
 def pixelIndexFeatureExtractor(x):
     '''
-    Feature Extractor Function
+    Function Purpose: Feature Extractor Function
 
     input: list of pixel values (ints) that correspond to an image
     output: phi(x) represented as a dictionary
@@ -202,8 +217,11 @@ def pixelIndexFeatureExtractor(x):
 
 
 def getMaxBranchIndex(weightList, y, phi):
-    '''determines and returns the arg max over i of: 
-    {dotProduct(weightList[i], phi) - dotproduct(weightList[y], phi) + 1 * (indicator i equals not y)}'''
+    '''
+    Function Purpose: 
+        determines and returns the arg max over i of: 
+        {dotProduct(weightList[i], phi) - dotproduct(weightList[y], phi) + 1 * (indicator i equals not y)}
+    '''
 
     branchValues = []
     true_weights = weightList[y]
@@ -228,13 +246,10 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
     '''
     Given |trainExamples| and |testExamples| (each one is a list of (x,y)
     pairs), a |featureExtractor| to apply to x, and the number of iterations to
-    train |numIters|, return the weight vector (sparse feature vector) learned.
+    train |numIters|, return the multiclass weight vector (sparse feature vector) learned.
 
-    You should implement stochastic gradient descent.
-
-    Note: only use the trainExamples for training!
-    You should call evaluatePredictor() on both trainExamples and testExamples
-    to see how you're doing as you learn after each iteration.
+    Stochastic gradient descent implemented with the multiclass version of the 
+    Hinge Loss Function.
     '''
 
     #each category has its own set of weights
@@ -257,13 +272,13 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
 
         return bestCategory
 
+
     eta = 1
     numIters = 20
     for i in range(numIters):
         eta = 1 / ((i + 1)**(1/2.0)) #step size dependent on the interation number
         for x, y in trainExamples:
             phi = featureExtractor(x)
-            #print phi
             dominantWeightIndex = getMaxBranchIndex(weightList, y, phi)
             if dominantWeightIndex != y:
                 HLG = phi
@@ -274,7 +289,7 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
         print "------- iteration: ", i, " --------"
         print "train accuracy" 
         evaluatePredictor(trainExamples, predictor)
-        print "test accuracy: "
+        print "test accuracy"
         evaluatePredictor(testExamples, predictor)
 
     return weightList
@@ -304,9 +319,9 @@ def dotProduct(d1, d2):
         return 0
 
 
-''' ---------- KMEANS CLUSTERING CODE ----------- '''
 
 
+''' ---------------------- KMEANS CLUSTERING CODE ---------------------- '''
 
 def euclideanDist(point1, point2):
     '''
@@ -399,13 +414,6 @@ def notConverged(centroidsPrev, centroidsNew):
     '''
 
     count = len([centroid for centroid in centroidsNew if centroid not in centroidsPrev])
-    # count = 0
-    # for centroid in centroidsNew:
-    #     for point in centroid:
-    #         print point
-    #         if point not in centroidsPrev.any():
-    #             count+=1
-
     count += len([centroid for centroid in centroidsPrev if centroid not in centroidsNew])
 
     return count != 0
@@ -427,8 +435,6 @@ def kmeans(data, k, maxIterations):
         -final centroids
     ----
     '''
-
-    print "starting kmean clustering"
 
     centroidsPrev = [] 
     for i in range(0, k):
@@ -544,6 +550,11 @@ def evaluatePartionedClusters(eye1ClusterAssignments, eye2ClusterAssignments, mo
 
 
 def evaluateClusters(clusterAssignments, data, k):
+    '''
+    Function purpose:
+        Evaluates accuracy of clustering by comparing an examples assigned 
+        cluster in clusterAssignments to its true emotion (listed in data)
+    '''
 
     #groupMapping[guessed group number] --> True Group number
     kmeansGroup_to_trueGroup = detmineGroupMapping(clusterAssignments, data, k)
@@ -565,6 +576,9 @@ def evaluateClusters(clusterAssignments, data, k):
 
 def detmineGroupMapping(clusterAssignments, data, k):
     '''
+    Function Purpose: 
+        To determine a mapping of cluster index to emotion (aka determine which
+        emotion each cluster refers to)
     Returns a dictionary with:
         -key: cluster index (integer in range [0,k-1])
         -value: emotion category assigned to this cluster (integer in range[0,k-1])
@@ -575,6 +589,12 @@ def detmineGroupMapping(clusterAssignments, data, k):
     '''
 
 
+    '''
+    ------------------------------------------
+    SETUP: 
+    Needed for both Approach 1 and Approach 2
+    -----
+    '''
 
     #emotionCounter[emotion] = number of data points in the data set classified as this emotion
     emotionCounter = collections.Counter()
@@ -598,6 +618,11 @@ def detmineGroupMapping(clusterAssignments, data, k):
     #print "cluster list: ", clusterList
     #print "emotionCounter: ", emotionCounter
     #print "clusterPercentList: ", clusterPercentList
+    '''
+    -----
+    END SETUP
+    -----------------------------------------
+    '''
 
  
     '''
@@ -615,8 +640,9 @@ def detmineGroupMapping(clusterAssignments, data, k):
         #kmeansClusterIndex_to_emotion[clusterIndex] --> emotion
 
     #print "kmeansClusterIndex --> emotion: ", kmeansClusterIndex_to_emotion
-    return kmeansClusterIndex_to_emotion'''
+    return kmeansClusterIndex_to_emotion
 
+    '''
     '''
     -----
     END APPROACH 1
@@ -630,8 +656,6 @@ def detmineGroupMapping(clusterAssignments, data, k):
     assign an emotion to the cluster containing the highest percent of the emotion's data points
     -----
     '''
-    
-    #determine assignment by assigning an emotion to the cluster containing the highest percent of the emotion's data points
     
     kmeansClusterIndex_to_emotion = dict()
 
@@ -698,6 +722,10 @@ def clusterData(data, centroids):
     return clusters
 
 def get2dImage(image):
+    '''
+    Function Purpose:
+        converts an image (represented as a list of pixels) into a 2D arry
+    '''
     row = []
     twoDArray = []
     d = 48
@@ -804,9 +832,14 @@ def faceFeatureExtractor(image):
     return features
 
 
-#takes in the name of the extractor "sift", "surf", or "fast" and a 2-d pixel array
-#returns list of sift features in the form ([list of key points, array(list of descriptor lists)]
 def fancyFeatureExtractor(extractor, image):
+    '''
+    Function Purpose:
+        takes in the name of the extractor "sift", "surf", or "fast" and a 2-d pixel array
+        and returns list of sift features in the form:
+            ([list of key points, array(list of descriptor lists)]
+    '''
+
     drawImage = False
     spoints = {}
     if extractor == "sift":
@@ -852,7 +885,7 @@ def getPartitionedFeatures(spoints):
 
     return eye1, eye2, mouth
 
-def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
+def runFancyKMeans(training_data, testing_data, extractor):
    # print "starting surf"
     
     #///////////////////// flags ///////////////////
@@ -861,7 +894,7 @@ def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
    # kmeanstype = "partitioned"
    #////////////////////////////////////////////////
 
-    data = testing_data1
+    data = testing_data
     pixelList = [pixels for pixels, emotion in data]
     
     featureToImageMap = []
@@ -938,7 +971,7 @@ def runFancyKMeans(training_data, testing_data1, testing_data2, extractor):
         evaluatePartionedClusters(eye1Clusters, eye2Clusters, mouthClusters, data, k)
 
 
-def runNearestNeighbours(training_data, testing_data1, testing_data2, extractor):
+def runNearestNeighbours(training_data, testing_data, extractor):
     numCorrect = 0.0
     totalNum = 0.0
     pixelList = [pixels for pixels, emotion in training_data]
@@ -1125,7 +1158,11 @@ def runSGD(training_data, testing_data, featureExtractor):
 
 def runKmeans(training_data, testing_data, kmeansType):
     '''
-    This function holds code to run kmeans clustering
+    Function Purpose:
+        This function holds code to run kmeans clustering. It sets up the data
+        based on the format specified by the 'kmeansType' argument, runs kmeans, 
+        then evaluates the calculated centroid's ability to accurately predict 
+        the emotion of an image
     '''
 
     '''some functions might want data points represented as dictionaries'''
@@ -1187,6 +1224,12 @@ def runKmeans(training_data, testing_data, kmeansType):
 
 
 def testInputData(training_data, testing_data1, testing_data2):
+    '''
+    Function Purpose: 
+        This function takes in parsed training and testing data and prints out
+        examples from each data set to make sure they are formatted correctly
+    '''
+
     print "---- TRAINING DATA ----"
     print "# data points: ", len(training_data)
     print "----1st data point: ---"
@@ -1203,16 +1246,18 @@ def testInputData(training_data, testing_data1, testing_data2):
     print "----last data point: ----"
     print "Emotion: ", testing_data1[-1][1]
     print "Pixels: ", testing_data1[-1][0]
-    '''print "---- TESTING DATA2 ----"
-    print "# data points: ", len(testing_data2)
-    print "1st data point: "
-    print "Emotion: ", testing_data2[0][1]
-    print "Pixels: ", testing_data2[0][0]
-    print "---- TESTING DATA2 ----"
-    print "# data points: ", len(testing_data2)
-    print "last data point: "
-    print "Emotion: ", testing_data2[-1][1]
-    print "Pixels: ", testing_data2[-1][0]'''
+    
+    if testing_data2 != None:
+        print "---- TESTING DATA2 ----"
+        print "# data points: ", len(testing_data2)
+        print "1st data point: "
+        print "Emotion: ", testing_data2[0][1]
+        print "Pixels: ", testing_data2[0][0]
+        print "---- TESTING DATA2 ----"
+        print "# data points: ", len(testing_data2)
+        print "last data point: "
+        print "Emotion: ", testing_data2[-1][1]
+        print "Pixels: ", testing_data2[-1][0]
 
 def combinedExtractor(x):
     features = faceFeatureExtractor(x)
@@ -1221,9 +1266,13 @@ def combinedExtractor(x):
     #features.update(contoursFeatureExtractor(x))
     return features
 
-#Takes in the entire list of pixels for one image, returns a list of lists (each corresponds to pixels for one feature) 
 #def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e2y=10, e2w=10, e2h=10, mx=15, my=33, mw=18, mh=10 ):
 def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, e2y=90, e2w=40, e2h=45, mx=100, my=175, mw=45, mh=20 ):
+    '''
+    Function Purpose:
+        Takes in the entire list of pixels for one image, returns a list of lists 
+        (each corresponds to pixels for one feature) 
+    '''
     eye1LM = e1x
     eyeSeparation = max(e2x-e1x+e1w, e1x-20)
     eye2LM = e2x
@@ -1237,7 +1286,9 @@ def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, 
 
     features = {}
     lenPixels = len(pixelsOneImage)
-    numCols = 256#48 #CHANGE THIS FOR ACTUAL DATA
+
+    numCols = 256
+    if source == 'kaggle': numCols = 48 
     '''eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
     eyeSeparation = 40#10 #separation between two eyes
     eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
@@ -1322,56 +1373,90 @@ def contoursFeatureExtractor(image):
     #print contours[0]
     return features
 
-def main():
+def randomizeTrainingData(all_data, seed):
+    '''
+    Function Purpose: 
+    Takes in a data set and randomly divies it up into training and testing data. Note, the 
+    number of examples put into the training set is given by: jaffe_training_set_size (global variable)
 
-    if len(sys.argv) < 3: raise Exception("Not enough arguments given. EXPECTED FORMAT: python baseline.py <input file name> <data type (either \"kaggle\" or \"jaffe\")>")
+    Arguments:
+        -all_data: list of tuples of form (pixels, emotion) for every image in the data set
+    Return Value:
+        -tuple of form: (training examples, testing exampless)
+    '''
+    if seed != None: random.seed(seed)
+    numSamples = 213
+    trainIndices = random.sample(range(numSamples), jaffe_training_set_size)
+    j_train_data = [all_data[index] for index in trainIndices]
+    j_test_data = [all_data[i] for i in range(numSamples) if i not in trainIndices]
+
+    return j_train_data, j_test_data
+
+def main():
+    '''
+    Program takes 4 parameters: <data file name> <data type> <linear classifier> <feature extractor>
+        -data file name is either: fer2013.csv or jaffePixelData.txt
+        -data type is either: "kaggle" or "jaffe"
+        -linear classifier is either: 'kmeans', 'sgd', 'knn'
+        -feature extractor is either: 'pl', 'grid', 'sift', 'surf', 'fast'
+    '''
+
+    if len(sys.argv) < 5: raise Exception("Not enough arguments given. EXPECTED FORMAT: python baseline.py <input file name> <data type (either \"kaggle\" or \"jaffe\")> <liner classifier> <feature extractor>")
     
     testing_data = None
     training_data = None
 
     data_type = str(sys.argv[2])
+    linear_classifier = str(sys.argv[3])
+    feature_extractor = str(sys.argv[4])
+
     if data_type == 'kaggle':
         training_data, testing_data1, testing_data2 = parseKaggleData(sys.argv[1])
-        #testInputData(training_data, testing_data1, testing_data2)
         '''** Note: if smallKaggleDataSet = true, the value of testing_data2 will be None **'''
         testing_data = testing_data1
         source = "kaggle"
     if data_type == 'jaffe':
         training_data, testing_data, all_data = parseJaffeData(sys.argv[1])
         source = "jaffe"
-        #testInputData(training_data, testing_data, None)
+        seed = 3 #either set a value or set to None
+        if randomize_jaffe_data: training_data, testing_data = randomizeTrainingData(all_data, seed)
 
-        numSamples = 213
-        numTrain=150
-        random.seed(3)
-        trainIndices = random.sample(range(numSamples), numTrain)
-        j_train_data = [all_data[index] for index in trainIndices]
-        j_test_data = [all_data[i] for i in range(numSamples) if i not in trainIndices]
-
-
-
-    #runSGD(training_data, testData)
-    #runKmeans(training_data, testData)
-    #runFancyKMeans(training_data, testing_data1, testing_data2, "fast")
-    #runNearestNeighbours(training_data, testing_data1, testing_data2, "sift")
-
-
-    #runSGD(training_data, testing_data, pixelIndexFeatureExtractor)
-    runSGD(training_data, testing_data, featurizePixelList)
-
-
-    '''---If running kmeans, set kmeans type below--'''
-    #list of all pixels in an image
-    kmeansType = "pixel list"
     
-    #list of pixels for eye1, eye2, and mouth in a given image
-    #kmeansType = "featurize pixel list"
-
-    #runKmeans(training_data, testing_data, kmeansType)
-    '''----'''
     
-    #runFancyKMeans(training_data, testing_data1, testing_data2, "surf")
-    #runNearestNeighbours(training_data, testing_data1, testing_data2, "surf")
+    if linear_classifier == 'sgd':
+        if feature_extractor == 'pl':
+            runSGD(training_data, testing_data, pixelIndexFeatureExtractor)
+        elif feature_extractor == 'grid':
+            runSGD(training_data, testing_data, featurizePixelList)
+        else: 
+            raise Exception("Invalid linear classifier & feature extractor combination")
+
+    elif linear_classifier == 'kmeans':
+        if feature_extractor == 'pl':
+            runKmeans(training_data, testing_data, 'pixel list')
+        elif feature_extractor == 'grid':
+            runKmeans(training_data, testing_data, 'featurize pixel list')
+        elif feature_extractor == 'sift':
+            runFancyKMeans(training_data, testing_data, "sift")
+        elif feature_extractor == 'surf':
+            runFancyKMeans(training_data, testing_data, "surf")
+        elif feature_extractor == 'fast':
+            runFancyKMeans(training_data, testing_data, "fast")
+        else: 
+            raise Exception("Invalid linear classifier & feature extractor combination")
+
+    elif linear_classifier == 'knn':
+        if feature_extractor == 'sift':
+            runNearestNeighbours(training_data, testing_data, "sift")
+        elif feature_extractor == 'surf':
+            runNearestNeighbours(training_data, testing_data, "surf")
+        elif feature_extractor == 'fast':
+            runNearestNeighbours(training_data, testing_data, "fast")
+        else: 
+            raise Exception("Invalid linear classifier & feature extractor combination")
+   
+    else:
+        raise Exception("Invalid linear classifier & feature extractor combination")
 
 
 if __name__ == '__main__':
