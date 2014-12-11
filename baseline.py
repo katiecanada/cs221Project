@@ -20,7 +20,7 @@ smallKaggleDataSetSize = 500 #number of data points in the smaller data set (for
 #Note for jaffe: 0--> neutral, 1 --> happy, 2--> sad, 3--> surprised, 4 --> angry, 5 --> disgust, 6 --> fear
 '''Out of 213 images, set the size of the training set.'''
 #must be <= 213, note: jaffe_testing_set_size automatically set to (214 - training_set_size)
-jaffe_training_set_size = 125
+jaffe_training_set_size = 150
 
 source = "jaffe"
 
@@ -130,7 +130,7 @@ def parseJaffeData(file_name):
     training_data = [] #list of tuples (pixels, emotion category) where pixels is a list ints representing the 
                         #color value for each pixel and 'emotion category' is an int is in the range [0, 6]
     testing_data = []
-
+    all_data = []
     emotion_to_index = {"NE": 0, "HA": 1, "SA": 2, "SU": 3, "AN": 4, "DI": 5, "FE": 6}
 
     emotionCounter = [0]*7
@@ -147,10 +147,10 @@ def parseJaffeData(file_name):
 
         pixels = [int(x) for x in values[2:]]
         data_set.append((pixels, emotion))
-
+        all_data.append((pixels, emotion))
 
     print "emotionCounter: ", emotionCounter
-    return (training_data, testing_data)
+    return (training_data, testing_data, all_data)
 
 
 
@@ -707,21 +707,20 @@ def faceFeatureExtractor(image):
     image =  np.uint8(np.array(image))
     face_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/haarcascade_frontalface_default.xml')
     face = face_cascade.detectMultiScale(image, minSize=(2, 2))
-    facewidth = 48.0
-    faceheight = 48.0
-    e1x=10 
-    e1y=10 
-    e1w=12
-    e1h=12
-    e2x=30
-    e2y=10
-    e2w=12
-    e2h=12
-    mx=15
-    my=33
-    mw=18 
-    mh=10
-
+    facewidth = 256.0
+    faceheight = 256.0
+    e1x=80
+    e1y=90
+    e1w=40
+    e1h=65
+    e2x=140
+    e2y=90
+    e2w=40
+    e2h=45
+    mx=100
+    my=180
+    mw=55
+    mh=40
 
     if len(face) ==1 :
         f = face[0]
@@ -752,8 +751,8 @@ def faceFeatureExtractor(image):
         # print "e1w", e[2]
         # print "e1h", e[3]
         #features["eye1w"] = e[2]/facewidth
-        features["eye1h"] = e[3]/faceheight
-        cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
+        #features["eye1h"] = e[3]/faceheight
+        #cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
     if len(eye)>=2:
         e = eye[1]
         e2x = e[0]
@@ -763,8 +762,8 @@ def faceFeatureExtractor(image):
         #features["eye2x"] = e[0]
         #features["eye2y"] = e[1]
         #features["eye2w"] = e[2]/facewidth
-        cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
-        features["eye2h"] = e[3]/faceheight
+        #cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
+        #features["eye2h"] = e[3]/faceheight
 
     smile_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/mouth.xml')
     smile = smile_cascade.detectMultiScale(image)
@@ -775,9 +774,10 @@ def faceFeatureExtractor(image):
         mw = s[2]
         mh = s[3]
         #features["smilew"] = s[2]/facewidth
-        cv2.rectangle(image,(s[0],s[1]),(s[0]+s[2],s[1]+s[3]),(255,0,0),1)
+        #cv2.rectangle(image,(s[0],s[1]),(s[0]+s[2],s[1]+s[3]),(255,0,0),1)
         features["smileh"] = s[3]/faceheight     
 
+    #plt.imshow(image,'gray'),plt.show()
     # cv2.rectangle(image,(e1x,e1y),(e1x+e1w,e1y+e1h),(255,0,0),1)
     # cv2.rectangle(image,(e2x,e2y),(e2x+e2w,e2y+e2h),(255,0,0),1)
     # cv2.rectangle(image,(mx,my),(mx+mw,my+mh),(255,0,0),1)
@@ -1106,10 +1106,10 @@ def runSGD(training_data, testing_data, featureExtractor):
     This function holds code to run stochastic gradient descent
     '''
     #learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
-    #learnPredictor(training_data, testing_data, faceFeatureExtractor)
+    learnPredictor(training_data, testing_data, faceFeatureExtractor)
     #learnPredictor(training_data, testing_data, combinedExtractor)
     #learnPredictor(training_data, testing_data, contoursFeatureExtractor)
-    learnPredictor(training_data, testing_data, featureExtractor)
+    #learnPredictor(training_data, testing_data, featureExtractor)
 
 def runKmeans(training_data, testing_data, kmeansType):
     '''
@@ -1210,7 +1210,8 @@ def combinedExtractor(x):
     return features
 
 #Takes in the entire list of pixels for one image, returns a list of lists (each corresponds to pixels for one feature) 
-def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e2y=10, e2w=10, e2h=10, mx=15, my=33, mw=18, mh=10 ):
+#def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e2y=10, e2w=10, e2h=10, mx=15, my=33, mw=18, mh=10 ):
+def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, e2y=90, e2w=40, e2h=45, mx=100, my=180, mw=55, mh=40 ):
     eye1LM = e1x
     eyeSeparation = max(e2x-e1x+e1w, e1x-20)
     eye2LM = e2x
@@ -1225,6 +1226,7 @@ def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e
     features = {}
     lenPixels = len(pixelsOneImage)
     numCols = 256#48 #CHANGE THIS FOR ACTUAL DATA
+
     #eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
     eyeSeparation = 37#10 #separation between two eyes
     #eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
@@ -1238,11 +1240,21 @@ def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e
 
     image = get2dImage(pixelsOneImage)
     image =  np.uint8(np.array(image))
-    cv2.rectangle(image,(eye1LM,eyeH),(eye1LM+eyeW,eyesTY+eyeH),(255,0,0),1)
-    cv2.rectangle(image,(eye2LM,eyeH),(eye2LM+eyeW,eyesTY+eyeH),(255,0,0),1)
-    cv2.rectangle(image,(mouthLM,mouthH),(mouthLM+mouthW,mouthTY+mouthH),(255,0,0),1)
-    plt.imshow(image,'gray'),plt.show()
+   # cv2.rectangle(image,(eye1LM,eyesTY),(eye1LM+eyeW,eyesTY+eyeH),(255,0,0),1)
+   # cv2.rectangle(image,(eye2LM,eyesTY),(eye2LM+eyeW,eyesTY+eyeH),(255,0,0),1)
+   # cv2.rectangle(image,(mouthLM,mouthTY),(mouthLM+mouthW,mouthTY+mouthH),(255,0,0),1)
+   # plt.imshow(image,'gray'),plt.show()
 
+    '''eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
+    eyeSeparation = 40#10 #separation between two eyes
+    eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
+    eyesTY = 65#10 #y coordinate of the top of each eye
+    eyeH = 35#10 #height of each eye
+    eyeW = 30#10 #width of each eye
+    mouthTY = 195#33 #y coordinate of top of mouth
+    mouthH = 15#10 #height of mouth
+    mouthW = 40#20 #width of mouth
+    mouthLM = 100#15 #left margin of mouth (distance from left edge)'''
     
     for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
        # features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
@@ -1331,7 +1343,7 @@ def main():
         testing_data = testing_data1
         source = "kaggle"
     if data_type == 'jaffe':
-        training_data, testing_data = parseJaffeData(sys.argv[1])
+        training_data, testing_data, all_data = parseJaffeData(sys.argv[1])
         source = "jaffe"
         #testInputData(training_data, testing_data, None)
 
@@ -1351,10 +1363,10 @@ def main():
 
     '''---If running kmeans, set kmeans type below--'''
     #list of all pixels in an image
-    #kmeansType = "pixel list"
+    kmeansType = "pixel list"
     
     #list of pixels for eye1, eye2, and mouth in a given image
-    kmeansType = "featurize pixel list"
+    #kmeansType = "featurize pixel list"
 
     #runKmeans(training_data, testing_data, kmeansType)
     '''----'''
