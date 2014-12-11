@@ -1,5 +1,5 @@
 import numpy as np
-#import cv2 as cv2
+import cv2 as cv2
 import csv
 import sys
 import random
@@ -747,21 +747,20 @@ def faceFeatureExtractor(image):
     image =  np.uint8(np.array(image))
     face_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/haarcascade_frontalface_default.xml')
     face = face_cascade.detectMultiScale(image, minSize=(2, 2))
-    facewidth = 48.0
-    faceheight = 48.0
-    e1x=10 
-    e1y=10 
-    e1w=12
-    e1h=12
-    e2x=30
-    e2y=10
-    e2w=12
-    e2h=12
-    mx=15
-    my=33
-    mw=18 
-    mh=10
-
+    facewidth = 256.0
+    faceheight = 256.0
+    e1x=80
+    e1y=90
+    e1w=40
+    e1h=65
+    e2x=140
+    e2y=90
+    e2w=40
+    e2h=45
+    mx=100
+    my=180
+    mw=55
+    mh=40
 
     if len(face) ==1 :
         f = face[0]
@@ -792,8 +791,8 @@ def faceFeatureExtractor(image):
         # print "e1w", e[2]
         # print "e1h", e[3]
         #features["eye1w"] = e[2]/facewidth
-        features["eye1h"] = e[3]/faceheight
-        # cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
+        #features["eye1h"] = e[3]/faceheight
+        #cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
     if len(eye)>=2:
         e = eye[1]
         e2x = e[0]
@@ -803,8 +802,8 @@ def faceFeatureExtractor(image):
         #features["eye2x"] = e[0]
         #features["eye2y"] = e[1]
         #features["eye2w"] = e[2]/facewidth
-        # cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
-        features["eye2h"] = e[3]/faceheight
+        #cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
+        #features["eye2h"] = e[3]/faceheight
 
     smile_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/mouth.xml')
     smile = smile_cascade.detectMultiScale(image)
@@ -815,16 +814,17 @@ def faceFeatureExtractor(image):
         mw = s[2]
         mh = s[3]
         #features["smilew"] = s[2]/facewidth
-        # cv2.rectangle(image,(s[0],s[1]),(s[0]+s[2],s[1]+s[3]),(255,0,0),1)
+        #cv2.rectangle(image,(s[0],s[1]),(s[0]+s[2],s[1]+s[3]),(255,0,0),1)
         features["smileh"] = s[3]/faceheight     
 
+    #plt.imshow(image,'gray'),plt.show()
     # cv2.rectangle(image,(e1x,e1y),(e1x+e1w,e1y+e1h),(255,0,0),1)
     # cv2.rectangle(image,(e2x,e2y),(e2x+e2w,e2y+e2h),(255,0,0),1)
     # cv2.rectangle(image,(mx,my),(mx+mw,my+mh),(255,0,0),1)
 
         # cv2.rectangle(image,(15,33),(35,43),(255,0,0),1)
-    ret,thresh = cv2.threshold(image,127,255, cv2.THRESH_TOZERO_INV)
-    #plt.imshow(thresh,'gray'),plt.show()
+    #ret,thresh = cv2.threshold(image,127,255, cv2.THRESH_TOZERO_INV)
+#    plt.imshow(thresh,'gray'),plt.show()
 
      #   fancyFeatureExtractor("fast", image)       
 
@@ -1151,10 +1151,10 @@ def runSGD(training_data, testing_data, featureExtractor):
     This function holds code to run stochastic gradient descent
     '''
     #learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
-    #learnPredictor(training_data, testing_data, faceFeatureExtractor)
+    learnPredictor(training_data, testing_data, faceFeatureExtractor)
     #learnPredictor(training_data, testing_data, combinedExtractor)
     #learnPredictor(training_data, testing_data, contoursFeatureExtractor)
-    learnPredictor(training_data, testing_data, featureExtractor)
+    #learnPredictor(training_data, testing_data, featureExtractor)
 
 def runKmeans(training_data, testing_data, kmeansType):
     '''
@@ -1286,19 +1286,28 @@ def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, 
 
     features = {}
     lenPixels = len(pixelsOneImage)
-
     numCols = 256
     if source == 'kaggle': numCols = 48 
-    '''eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
-    eyeSeparation = 40#10 #separation between two eyes
-    eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
-    eyesTY = 65#10 #y coordinate of the top of each eye
-    eyeH = 35#10 #height of each eye
-    eyeW = 30#10 #width of each eye
-    mouthTY = 195#33 #y coordinate of top of mouth
-    mouthH = 15#10 #height of mouth
-    mouthW = 40#20 #width of mouth
-    mouthLM = 100#15 #left margin of mouth (distance from left edge)'''
+
+    #eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
+    eyeSeparation = 37#10 #separation between two eyes
+    #eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
+    #eyesTY = 65#10 #y coordinate of the top of each eye
+    #eyeH = 35#10 #height of each eye
+    #eyeW = 30#10 #width of each eye
+    #mouthTY = 195#33 #y coordinate of top of mouth
+    #mouthH = 15#10 #height of mouth
+    #mouthW = 40#20 #width of mouth
+    #mouthLM = 100#15 #left margin of mouth (distance from left edge)
+
+    image = get2dImage(pixelsOneImage)
+    image =  np.uint8(np.array(image))
+   # cv2.rectangle(image,(eye1LM,eyesTY),(eye1LM+eyeW,eyesTY+eyeH),(255,0,0),1)
+   # cv2.rectangle(image,(eye2LM,eyesTY),(eye2LM+eyeW,eyesTY+eyeH),(255,0,0),1)
+   # cv2.rectangle(image,(mouthLM,mouthTY),(mouthLM+mouthW,mouthTY+mouthH),(255,0,0),1)
+   # plt.imshow(image,'gray'),plt.show()
+
+
     
     for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
        # features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
@@ -1332,7 +1341,6 @@ def contoursFeatureExtractor(image):
     image = get2dImage(image)
 
     image =  np.uint8(np.array(image))
-    image = (image)
     #imgray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY)
     contours, hierarchy = cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
@@ -1421,7 +1429,6 @@ def main():
         seed = 3 #either set a value or set to None
         if randomize_jaffe_data: training_data, testing_data = randomizeTrainingData(all_data, seed)
 
-    
     
     if linear_classifier == 'sgd':
         if feature_extractor == 'pl':
