@@ -1,5 +1,5 @@
 import numpy as np
-import cv2 as cv2
+#import cv2 as cv2
 import csv
 import sys
 import random
