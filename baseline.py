@@ -24,7 +24,7 @@ smallKaggleDataSetSize = 500 #number of data points in the smaller data set (for
 #Out of 213 images, set the size of the training set (must be <= 213 and note: jaffe_testing_set_size automatically set to (214 - training_set_size))
 jaffe_training_set_size = 150
 #set the training data to be randomized or not
-randomize_jaffe_data = True
+randomize_jaffe_data = False
 ##-------------------------------------
 
 #set by program arguments, <source> signifies which data set we are using
@@ -790,8 +790,8 @@ def faceFeatureExtractor(image):
         #features["eye1y"] = e[1]
         # print "e1w", e[2]
         # print "e1h", e[3]
-        #features["eye1w"] = e[2]/facewidth
-        #features["eye1h"] = e[3]/faceheight
+        features["eye1w"] = e[2]/facewidth
+        features["eye1h"] = e[3]/faceheight
         #cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
     if len(eye)>=2:
         e = eye[1]
@@ -801,9 +801,9 @@ def faceFeatureExtractor(image):
         e2h = e[3]        
         #features["eye2x"] = e[0]
         #features["eye2y"] = e[1]
-        #features["eye2w"] = e[2]/facewidth
+        features["eye2w"] = e[2]/facewidth
         #cv2.rectangle(image,(e[0],e[1]),(e[0]+e[2],e[1]+e[3]),(255,0,0),1)
-        #features["eye2h"] = e[3]/faceheight
+        features["eye2h"] = e[3]/faceheight
 
     smile_cascade = cv2.CascadeClassifier('opencv/opencv/data/haarcascades/mouth.xml')
     smile = smile_cascade.detectMultiScale(image)
@@ -813,7 +813,7 @@ def faceFeatureExtractor(image):
         my = s[1]
         mw = s[2]
         mh = s[3]
-        #features["smilew"] = s[2]/facewidth
+        features["smilew"] = s[2]/facewidth
         #cv2.rectangle(image,(s[0],s[1]),(s[0]+s[2],s[1]+s[3]),(255,0,0),1)
         features["smileh"] = s[3]/faceheight     
 
@@ -828,7 +828,8 @@ def faceFeatureExtractor(image):
 
      #   fancyFeatureExtractor("fast", image)       
 
-    features.update(featurizePixelList(image1d, e1x, e1y, e1w, e1h, e2x, e2y, e2w, e2h, mx, my, mw, mh))
+     #to combine with featurizePixelList
+   # features.update(featurizePixelList(image1d, e1x, e1y, e1w, e1h, e2x, e2y, e2w, e2h, mx, my, mw, mh))
     return features
 
 
@@ -974,7 +975,7 @@ def runFancyKMeans(training_data, testing_data, extractor):
 def runNearestNeighbours(training_data, testing_data, extractor):
     numCorrect = 0.0
     totalNum = 0.0
-    pixelList = [pixels for pixels, emotion in training_data]
+    pixelList = [pixels for pixels, emotion in testing_data]
     for x in range(len(pixelList)):
         twoDArray = get2dImage(pixelList[x])
         spoints = fancyFeatureExtractor(extractor, twoDArray)
@@ -1320,20 +1321,6 @@ def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, 
     
     return features 
         
-    #for i in range(0, numCols/2) 
-    #    features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i,((i*numCols)+(numCols/2)))}) 
-    #    features.update({"eye2_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(((i*numCols)+(numCols/2)),(i*numCols)+numCols)})
-        
-    #features.update({"mouth_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range((lenPixels/2),(lenPixels-1))})
-    #return features #[eye1, eye2, mouth]
-
-    #eye1 = {} #{eye1_1: pixelValue, eye1_2: pixelValue, ...}
-    #eye2 = {} #{eye2_1: pixelValue, eye2_2: pixelValue, ...}
-    #pixelsOneImage[numCols*i:((i*numCols)+(numCols/2))]}) #eye1
-        #eye2.extend(pixelsOneImage[((i*numCols)+(numCols/2)):(i*numCols)+numCols]) #10-20, 30-40        
-        #eye1.extend(pixelsOneImage[numCols*i:((i*numCols)+(numCols/2))]) #10-20
-        #eye2.extend(pixelsOneImage[((i*numCols)+(numCols/2)):(i*numCols)+numCols]) #10-20, 30-40
-    #mouth = pixelsOneImage[(lenPixels/2):(lenPixels-1)] #{mouth_1: pixelValue, mouth_2: pixelValue, ...}
 
 
 def contoursFeatureExtractor(image):
@@ -1406,7 +1393,7 @@ def main():
         -data file name is either: fer2013.csv or jaffePixelData.txt
         -data type is either: "kaggle" or "jaffe"
         -linear classifier is either: 'kmeans', 'sgd', 'knn'
-        -feature extractor is either: 'pl', 'grid', 'sift', 'surf', 'fast'
+        -feature extractor is either: 'pl', 'grid', 'sift', 'surf', 'fast', 'cascade'
     '''
 
     if len(sys.argv) < 5: raise Exception("Not enough arguments given. EXPECTED FORMAT: python baseline.py <input file name> <data type (either \"kaggle\" or \"jaffe\")> <liner classifier> <feature extractor>")
@@ -1435,6 +1422,8 @@ def main():
             runSGD(training_data, testing_data, pixelIndexFeatureExtractor)
         elif feature_extractor == 'grid':
             runSGD(training_data, testing_data, featurizePixelList)
+        elif feature_extractor == "cascade":
+            runSGD(training_data, testing_data, faceFeatureExtractor)
         else: 
             raise Exception("Invalid linear classifier & feature extractor combination")
 
