@@ -1,5 +1,5 @@
 import numpy as np
-import cv2 as cv2
+#import cv2 as cv2
 import csv
 import sys
 import random
@@ -1268,7 +1268,7 @@ def combinedExtractor(x):
     return features
 
 #def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e2y=10, e2w=10, e2h=10, mx=15, my=33, mw=18, mh=10 ):
-def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, e2y=90, e2w=40, e2h=45, mx=100, my=175, mw=45, mh=20 ):
+def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, e2y=90, e2w=40, e2h=65, mx=100, my=175, mw=45, mh=20 ):
     '''
     Function Purpose:
         Takes in the entire list of pixels for one image, returns a list of lists 
