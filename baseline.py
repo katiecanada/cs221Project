@@ -1,5 +1,5 @@
 import numpy as np
-#import cv2 as cv2
+import cv2 as cv2
 import csv
 import sys
 import random
@@ -24,7 +24,7 @@ smallKaggleDataSetSize = 500 #number of data points in the smaller data set (for
 #Out of 213 images, set the size of the training set (must be <= 213 and note: jaffe_testing_set_size automatically set to (214 - training_set_size))
 jaffe_training_set_size = 150
 #set the training data to be randomized or not
-randomize_jaffe_data = False
+randomize_jaffe_data = True
 ##-------------------------------------
 
 #set by program arguments, <source> signifies which data set we are using
@@ -210,8 +210,14 @@ def pixelIndexFeatureExtractor(x):
     
     '''
     featureVector = dict()
-    for i in range(len(x)):
-        featureVector[i] = x[i]
+    # for i in range(len(x)):
+    #     featureVector[i] = x[i]
+    image = get2dImage(x)
+    image = np.uint8(image)
+    ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY_INV)
+    for i in range(0,len(thresh)):
+        for j in range(0,len(thresh[i])):
+            featureVector[i*256+j] = thresh[i][j]
 
     return featureVector
 
@@ -255,7 +261,9 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
     #each category has its own set of weights
         # weights[0] = dictionary: key(feature) => value(weight)
     weightList = [{}, {}, {}, {}, {}, {}, {}]
+    phiDict = {}
 
+   
     def predictor(x):
         '''
         -returns argMax over i of: dotProduct(weightList[i], featureExtractor(x))
@@ -278,7 +286,11 @@ def learnPredictor(trainExamples, testExamples, featureExtractor):
     for i in range(numIters):
         eta = 1 / ((i + 1)**(1/2.0)) #step size dependent on the interation number
         for x, y in trainExamples:
-            phi = featureExtractor(x)
+            if tuple(x) in phiDict:
+                phi = phiDict[tuple(x)]
+            else:
+                phi = featureExtractor(x)
+                phiDict[tuple(x)] = phi
             dominantWeightIndex = getMaxBranchIndex(weightList, y, phi)
             if dominantWeightIndex != y:
                 HLG = phi
@@ -740,7 +752,7 @@ def get2dImage(image):
     return twoDArray
 
 
-def faceFeatureExtractor(image):
+def faceFeatureExtractor(image, combo = False):
     image1d = image
     image = get2dImage(image)
     features = {}
@@ -829,7 +841,8 @@ def faceFeatureExtractor(image):
      #   fancyFeatureExtractor("fast", image)       
 
      #to combine with featurizePixelList
-   # features.update(featurizePixelList(image1d, e1x, e1y, e1w, e1h, e2x, e2y, e2w, e2h, mx, my, mw, mh))
+    if combo is True:
+        features.update(featurizePixelList(image1d, e1x, e1y, e1w, e1h, e2x, e2y, e2w, e2h, mx, my, mw, mh))
     return features
 
 
@@ -841,14 +854,14 @@ def fancyFeatureExtractor(extractor, image):
             ([list of key points, array(list of descriptor lists)]
     '''
 
-    drawImage = False
+    drawImage = True
     spoints = {}
     if extractor == "sift":
         sift = cv2.SIFT()
         spoints = sift.detectAndCompute(np.uint8(np.array(image)), None)
 
     elif extractor == "surf":
-        surf = cv2.SURF(0)   
+        surf = cv2.SURF(2000)   
         spoints = surf.detectAndCompute(np.uint8(np.array(image)), None)
     elif extractor == "fast":
         image = np.array(image, dtype=np.uint8)
@@ -1151,11 +1164,7 @@ def runSGD(training_data, testing_data, featureExtractor):
     '''
     This function holds code to run stochastic gradient descent
     '''
-    #learnPredictor(training_data, testing_data, pixelIndexFeatureExtractor)
-    learnPredictor(training_data, testing_data, faceFeatureExtractor)
-    #learnPredictor(training_data, testing_data, combinedExtractor)
-    #learnPredictor(training_data, testing_data, contoursFeatureExtractor)
-    #learnPredictor(training_data, testing_data, featureExtractor)
+    learnPredictor(training_data, testing_data, featureExtractor)
 
 def runKmeans(training_data, testing_data, kmeansType):
     '''
@@ -1261,10 +1270,7 @@ def testInputData(training_data, testing_data1, testing_data2):
         print "Pixels: ", testing_data2[-1][0]
 
 def combinedExtractor(x):
-    features = faceFeatureExtractor(x)
-    #features.update(featurizePixelList(x))
-    #print features
-    #features.update(contoursFeatureExtractor(x))
+    features = faceFeatureExtractor(x, combo = True)
     return features
 
 #def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e2y=10, e2w=10, e2h=10, mx=15, my=33, mw=18, mh=10 ):
@@ -1303,6 +1309,11 @@ def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, 
 
     image = get2dImage(pixelsOneImage)
     image =  np.uint8(np.array(image))
+    bwPixelList = []
+    ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY_INV)
+    for i in range(0,len(thresh)):
+        for j in range(0,len(thresh[i])):
+            bwPixelList.append(thresh[i][j])
    # cv2.rectangle(image,(eye1LM,eyesTY),(eye1LM+eyeW,eyesTY+eyeH),(255,0,0),1)
    # cv2.rectangle(image,(eye2LM,eyesTY),(eye2LM+eyeW,eyesTY+eyeH),(255,0,0),1)
    # cv2.rectangle(image,(mouthLM,mouthTY),(mouthLM+mouthW,mouthTY+mouthH),(255,0,0),1)
@@ -1311,13 +1322,10 @@ def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, 
 
     
     for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
-       # features.update({"eye1_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
-        features.update({str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
-       # features.update({"eye2_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(((i*numCols)+eye2LM),(i*numCols)+eye2LM+eyeW)})
-        features.update({str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range(((i*numCols)+eye2LM),(i*numCols)+eye2LM+eyeW)})
+        features.update({str(oldIndex):bwPixelList[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
+        features.update({str(oldIndex):bwPixelList[oldIndex] for oldIndex in range(((i*numCols)+eye2LM),(i*numCols)+eye2LM+eyeW)})
     for j in range(mouthTY-1, mouthTY+mouthH-1): #rows of the face the mouth is located in
-       # features.update({"mouth_"+str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range((j*numCols) + mouthLM, (j*numCols)+mouthLM+mouthW)})
-       features.update({str(oldIndex):pixelsOneImage[oldIndex] for oldIndex in range((j*numCols) + mouthLM, (j*numCols)+mouthLM+mouthW)})
+       features.update({str(oldIndex):bwPixelList[oldIndex] for oldIndex in range((j*numCols) + mouthLM, (j*numCols)+mouthLM+mouthW)})
     
     return features 
         
@@ -1329,11 +1337,11 @@ def contoursFeatureExtractor(image):
 
     image =  np.uint8(np.array(image))
     #imgray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-    ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY)
-    contours, hierarchy = cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+    ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY_INV)
+    contours, hierarchy = cv2.findContours(thresh,cv2.cv.CV_RETR_LIST,cv2.CHAIN_APPROX_NONE)
     contours.sort(key=lambda x: cv2.contourArea(x), reverse = True)
-    cv2.drawContours(thresh,contours[0:10],-1,(0,255,0),1)
-    plt.imshow(thresh),plt.show()
+    cv2.drawContours(image,contours,4,(0,255,0),3)
+    plt.imshow(image, "gray"),plt.show()
     features["numContours"] = len(contours)
     if len(contours) >= 1:
         features["c1area"] = cv2.contourArea(contours[0])
@@ -1424,6 +1432,10 @@ def main():
             runSGD(training_data, testing_data, featurizePixelList)
         elif feature_extractor == "cascade":
             runSGD(training_data, testing_data, faceFeatureExtractor)
+        elif feature_extractor == "combo":
+            runSGD(training_data, testing_data, combinedExtractor)
+        elif feature_extractor == "contour":
+            runSGD(training_data, testing_data, contoursFeatureExtractor)
         else: 
             raise Exception("Invalid linear classifier & feature extractor combination")
 
