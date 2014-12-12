@@ -29,7 +29,7 @@ randomize_jaffe_data = False
 
 #set by program arguments, <source> signifies which data set we are using
 source = "jaffe"
-useBW = True
+useBW = False
 
 def parseKaggleData(file_name):
     '''
@@ -1337,6 +1337,7 @@ def contoursFeatureExtractor(image):
     contours.sort(key=lambda x: cv2.contourArea(x), reverse = True)
     #cv2.drawContours(image,contours[2:],-1,(0,0,255),2)
     #plt.imshow(thresh, "gray"),plt.show()
+    plt.imshow(image, "gray"),plt.show()
     features["numContours"] = len(contours)
     if len(contours) >= 1:
         features["c1area"] = cv2.contourArea(contours[0])
