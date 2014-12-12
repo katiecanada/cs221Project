@@ -24,12 +24,12 @@ smallKaggleDataSetSize = 500 #number of data points in the smaller data set (for
 #Out of 213 images, set the size of the training set (must be <= 213 and note: jaffe_testing_set_size automatically set to (214 - training_set_size))
 jaffe_training_set_size = 150
 #set the training data to be randomized or not
-randomize_jaffe_data = True
+randomize_jaffe_data = False
 ##-------------------------------------
 
 #set by program arguments, <source> signifies which data set we are using
 source = "jaffe"
-
+useBW = True
 
 def parseKaggleData(file_name):
     '''
@@ -181,7 +181,7 @@ def evaluatePredictor(examples, predictor):
     '''
 
     #set to true if want the function to evaluate accuracy based on emotion
-    emotion_evaluator = False
+    emotion_evaluator = True
     ## emotion_couter[emotion index] =[#wrongly classified, #images of this emotion]
     emotion_counter = {0:[0,0], 1:[0,0], 2:[0,0], 3:[0,0], 4:[0,0], 5:[0,0], 6:[0,0]}
 
@@ -210,14 +210,16 @@ def pixelIndexFeatureExtractor(x):
     
     '''
     featureVector = dict()
-    # for i in range(len(x)):
-    #     featureVector[i] = x[i]
-    image = get2dImage(x)
-    image = np.uint8(image)
-    ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY_INV)
-    for i in range(0,len(thresh)):
-        for j in range(0,len(thresh[i])):
-            featureVector[i*256+j] = thresh[i][j]
+    if useBW:
+        image = get2dImage(x)
+        image = np.uint8(image)
+        ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY_INV)
+        for i in range(0,len(thresh)):
+            for j in range(0,len(thresh[i])):
+                featureVector[i*256+j] = thresh[i][j]
+    else:
+        for i in range(len(x)):
+            featureVector[i] = x[i]
 
     return featureVector
 
@@ -854,7 +856,7 @@ def fancyFeatureExtractor(extractor, image):
             ([list of key points, array(list of descriptor lists)]
     '''
 
-    drawImage = True
+    drawImage = False
     spoints = {}
     if extractor == "sift":
         sift = cv2.SIFT()
@@ -1274,7 +1276,7 @@ def combinedExtractor(x):
     return features
 
 #def featurizePixelList(pixelsOneImage, e1x=10, e1y=10, e1w=10, e1h=10, e2x=30, e2y=10, e2w=10, e2h=10, mx=15, my=33, mw=18, mh=10 ):
-def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, e2y=90, e2w=40, e2h=65, mx=100, my=175, mw=45, mh=20 ):
+def featurizePixelList(pixelList, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, e2y=90, e2w=40, e2h=65, mx=95, my=175, mw=60, mh=30 ):
     '''
     Function Purpose:
         Takes in the entire list of pixels for one image, returns a list of lists 
@@ -1290,42 +1292,35 @@ def featurizePixelList(pixelsOneImage, e1x=80, e1y=90, e1w=40, e1h=65, e2x=140, 
     mouthH = mh
     mouthW = mw
     mouthLM = mx
+    eyeSeparation = 37#10 #separation between two eyes
+
 
     features = {}
-    lenPixels = len(pixelsOneImage)
+    lenPixels = len(pixelList)
     numCols = 256
     if source == 'kaggle': numCols = 48 
 
-    #eye1LM = 60#10 #eye1 (left eye) left margin (distance from left edge)
-    eyeSeparation = 37#10 #separation between two eyes
-    #eye2LM = 97#8 #eye2 (right eye) left margin (distance from left edge)
-    #eyesTY = 65#10 #y coordinate of the top of each eye
-    #eyeH = 35#10 #height of each eye
-    #eyeW = 30#10 #width of each eye
-    #mouthTY = 195#33 #y coordinate of top of mouth
-    #mouthH = 15#10 #height of mouth
-    #mouthW = 40#20 #width of mouth
-    #mouthLM = 100#15 #left margin of mouth (distance from left edge)
-
-    image = get2dImage(pixelsOneImage)
-    image =  np.uint8(np.array(image))
-    bwPixelList = []
-    ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY_INV)
-    for i in range(0,len(thresh)):
-        for j in range(0,len(thresh[i])):
-            bwPixelList.append(thresh[i][j])
-   # cv2.rectangle(image,(eye1LM,eyesTY),(eye1LM+eyeW,eyesTY+eyeH),(255,0,0),1)
-   # cv2.rectangle(image,(eye2LM,eyesTY),(eye2LM+eyeW,eyesTY+eyeH),(255,0,0),1)
-   # cv2.rectangle(image,(mouthLM,mouthTY),(mouthLM+mouthW,mouthTY+mouthH),(255,0,0),1)
-   # plt.imshow(image,'gray'),plt.show()
+    if useBW:
+        image = get2dImage(pixelList)
+        image =  np.uint8(np.array(image))
+        bwPixelList = []
+        ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY_INV)
+        for i in range(0,len(thresh)):
+            for j in range(0,len(thresh[i])):
+                bwPixelList.append(thresh[i][j])
+        pixelList = bwPixelList
+    #cv2.rectangle(image,(eye1LM,eyesTY),(eye1LM+eyeW,eyesTY+eyeH),(255,0,0),1)
+    #cv2.rectangle(image,(eye2LM,eyesTY),(eye2LM+eyeW,eyesTY+eyeH),(255,0,0),1)
+    #cv2.rectangle(image,(mouthLM,mouthTY),(mouthLM+mouthW,mouthTY+mouthH),(255,0,0),1)
+    #plt.imshow(image,'gray'),plt.show()
 
 
     
     for i in range(eyesTY-1, eyesTY+eyeH-1): #rows of the face the eyes are located in
-        features.update({str(oldIndex):bwPixelList[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
-        features.update({str(oldIndex):bwPixelList[oldIndex] for oldIndex in range(((i*numCols)+eye2LM),(i*numCols)+eye2LM+eyeW)})
+        features.update({str(oldIndex):pixelList[oldIndex] for oldIndex in range(numCols*i + eye1LM,((i*numCols)+eye1LM+eyeW))}) 
+        features.update({str(oldIndex):pixelList[oldIndex] for oldIndex in range(((i*numCols)+eye2LM),(i*numCols)+eye2LM+eyeW)})
     for j in range(mouthTY-1, mouthTY+mouthH-1): #rows of the face the mouth is located in
-       features.update({str(oldIndex):bwPixelList[oldIndex] for oldIndex in range((j*numCols) + mouthLM, (j*numCols)+mouthLM+mouthW)})
+       features.update({str(oldIndex):pixelList[oldIndex] for oldIndex in range((j*numCols) + mouthLM, (j*numCols)+mouthLM+mouthW)})
     
     return features 
         
@@ -1340,8 +1335,8 @@ def contoursFeatureExtractor(image):
     ret,thresh = cv2.threshold(image,127,255,cv2.THRESH_BINARY_INV)
     contours, hierarchy = cv2.findContours(thresh,cv2.cv.CV_RETR_LIST,cv2.CHAIN_APPROX_NONE)
     contours.sort(key=lambda x: cv2.contourArea(x), reverse = True)
-    cv2.drawContours(image,contours,4,(0,255,0),3)
-    plt.imshow(image, "gray"),plt.show()
+    #cv2.drawContours(image,contours[2:],-1,(0,0,255),2)
+    #plt.imshow(thresh, "gray"),plt.show()
     features["numContours"] = len(contours)
     if len(contours) >= 1:
         features["c1area"] = cv2.contourArea(contours[0])
@@ -1430,12 +1425,18 @@ def main():
             runSGD(training_data, testing_data, pixelIndexFeatureExtractor)
         elif feature_extractor == 'grid':
             runSGD(training_data, testing_data, featurizePixelList)
-        elif feature_extractor == "cascade":
-            runSGD(training_data, testing_data, faceFeatureExtractor)
         elif feature_extractor == "combo":
             runSGD(training_data, testing_data, combinedExtractor)
         elif feature_extractor == "contour":
             runSGD(training_data, testing_data, contoursFeatureExtractor)
+        elif feature_extractor == "plbw":
+            useBW = True
+            runSGD(training_data, testing_data, pixelIndexFeatureExtractor)
+        elif featureExtractor == "gridbw":
+            useBW = True
+            runSGD(training_data, testing_data, featurizePixelList)
+        elif feature_extractor == "combobw":
+            runSGD(training_data, testing_data, combinedExtractor)
         else: 
             raise Exception("Invalid linear classifier & feature extractor combination")
 
